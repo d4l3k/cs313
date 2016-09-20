@@ -193,21 +193,23 @@ heapsort:
 	pushl  %ebx
 	rrmovl %eax, %ebx # Move eax into ebx (i/last).
 	call   heapify_array # heapify_array(last)
-	testl  %ebx, %ebx # Test if i < 0
-	js     .L1 # Jump to L1 if i < 0
+	andl   %ebx, %ebx # Test if i < 0
+	jl     hs_end # Jump to hs_end if i < 0
 
-.L5:
+hs_loop:
 	rrmovl %ebx, %eax # Move i into eax
+	pushl  %ebx
 	call   extract_max # extract_max(i)
+	popl   %ebx
 	rrmovl %ebx, %edx
-	addl   %edx, %edx       # heap[last] = extract_max(i)
+	addl   %edx, %edx
 	addl   %edx, %edx
 	rmmovl %eax, heap(%edx) # heap[i] = extract_max(i)
-	subq   $1, %ebx # Subtract 1 from i
-	testl  %ebx, %ebx # Check if i < 0
-	jns    .L5 # Jump to L5 if i < 0.
+	irmovl $1, %ecx
+	subl   %ecx, %ebx # Subtract 1 from i
+	jge    hs_loop # COntinue loop if i >= 0.
 
-.L1:
+hs_end:
 	popl %ebx
 	ret  # return (end of function)<Paste>i
 
