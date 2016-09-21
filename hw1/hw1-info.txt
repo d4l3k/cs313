@@ -1,0 +1,8 @@
+Tristan Rice
+25886145
+
+# Stage-by-stage description of instructions.
+
+# Test coverage
+
+# Time taken
