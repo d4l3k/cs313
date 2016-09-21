@@ -3,6 +3,108 @@ Tristan Rice
 
 # Stage-by-stage description of instructions.
 
+## rmmovl rA, D(rb,4)
+### Fetch
+Load icode, ifun, rA, rB, valC, valP
+
+### Decode
+valA = R[rA]
+valB = R[rB]
+
+### Execute
+If ifun == 4: valE = valC + 4 * valB
+
+### Memory
+M_4[valE] = valA
+
+### Write Back
+Nothing
+
+### PC Update
+PC = valP
+
+## mrmovl D(rB,4), rA
+### Fetch
+Load icode, ifun, rA, rB, valC, valP
+
+### Decode
+valB = R[rB]
+
+### Execute
+If ifun == 4: valE = valC + 4 * valB
+
+### Memory
+valM = M_4[valE]
+
+### Write Back
+R[rA] = valM
+
+### PC Update
+PC = valP
+
+## iaddl V, rB; isubl V, rB; ixorl V, rB; iandl V, rB; imull V, rB; idivl V, rB; imodl V, rB;
+### Fetch
+Load icode, ifun, rA, rB, valC, valP
+
+### Decode
+valB = R[rB]
+
+### Execute
+If ifun == iaddl: valE = valB + valC
+If ifun == isubl: valE = valB - valC
+If ifun == ixorl: valE = valB ^ valC
+If ifun == iandl: valE = valB & valC
+If ifun == imull: valE = valB * valC
+If ifun == idivl: valE = valB / valC
+If ifun == imodl: valE = valB % valC
+
+### Memory
+Nothing
+
+### Write Back
+R[rB] = valE
+
+### PC Update
+PC = valP
+
+## call *D(rB), rA
+### Fetch
+Load icode, ifun, rA, rB, valC, valP
+
+### Decode
+valB = R[rB]
+
+### Execute
+valE = valC + valB
+
+### Memory
+valM = M_4[valE]
+
+### Write Back
+R[rA] = valP
+
+### PC Update
+PC = valM
+
 # Test coverage
+## movl.s
+Tests the new instructions `mrmovl D(rB, 4), rA`, `rmmovl rA, D(rB, 4)` as well
+as the old instructions mrmovl, rmmovl. The new instructions multiply rB by 4, where as the old
+ones don't. This is verified through the regression tests that do very similar
+things, but with a 4x offset instead.
+
+## iopl.s
+Calls irmovl to setup a register and then calls all of the functions with
+different arguments that make the registers all equal 6 afterwards. Correctly
+operates. There are no regression tests, as these are completely new
+instructions and don't touch other things.
+
+## call.s
+Tests by calling a function in a table with an offset. Then tests the regression
+by calling a function using the standard `call func2`. It first calls func and
+then func2.
 
 # Time taken
+6h by myself
+0h for my non-existant partner
+6h total

@@ -1,16 +1,24 @@
-package arch.y86.machine.seq.student;
+package arch.y86.machine.pipe.student;
 
 import machine.AbstractMainMemory;
 import machine.Register;
 import machine.RegisterSet;
+import ui.Machine;
 import arch.y86.machine.AbstractY86CPU;
 
-public class CPU extends AbstractY86CPU.Sequential {
 
+/**
+ * The Simple Machine CPU.
+ *
+ * Simulate execution of a single cycle of the Simple Machine Y86-Pipe CPU.
+ */
+
+public class CPU extends AbstractY86CPU.Pipelined {
+    
     public CPU (String name, AbstractMainMemory memory) {
         super (name, memory);
     }
-
+    
     /**
      * Execute one clock cycle with all stages executing in parallel.
      * @throws InvalidInstructionException                if instruction is invalid (including invalid register number).
@@ -18,57 +26,72 @@ public class CPU extends AbstractY86CPU.Sequential {
      * @throws MachineHaltException                       if instruction halts the CPU.
      * @throws Register.TimingException
      */
-    @Override
-    protected void cycle () throws InvalidInstructionException, AbstractMainMemory.InvalidAddressException, MachineHaltException, Register.TimingException, ImplementationException {
-        cycleSeq ();
+    @Override protected void cycle () throws InvalidInstructionException, AbstractMainMemory.InvalidAddressException, MachineHaltException, Register.TimingException, ImplementationException {
+        cyclePipe();
     }
-
+    
+    /**
+     * Pipeline Hazard Control
+     *
+     * IMPLEMENTED BY STUDENT
+     */
+    
+    @Override protected void pipelineHazardControl () throws Register.TimingException {
+        ;
+    }
+    
+    /**
+     * The SelectPC part of the fetch stage
+     *
+     * IMPLEMENTED BY STUDENT
+     */
+    
+    @Override protected void fetch_SelectPC () throws Register.TimingException {
+        f.pc.set (F.prPC.get());
+    }
+    
+    /**
+     * PC prediction part of FETCH stage.  Predicts PC to fetch in next cycle.
+     * Writes the predicted PC into the f.prPC register.
+     *
+     * IMPLEMENTED BY STUDENT
+     */
+    
+    private void fetch_PredictPC () throws Register.TimingException {
+        if (f.stat.getValueProduced()==S_AOK)
+            f.prPC.set (f.valP.getValueProduced());
+        else
+            f.prPC.set (f.pc.getValueProduced());
+    }
+    
     /**
      * The FETCH stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void fetch () throws Register.TimingException {
-        System.out.println("fetch");
         try {
-
+            
+            // determine correct PC for this stage
+            fetch_SelectPC();
+            
             // get iCd and iFn
-            f.iCd.set (mem.read (F.pc.get(),1)[0].value() >>> 4);
-            f.iFn.set (mem.read (F.pc.get(),1)[0].value() & 0xf);
-
+            f.iCd.set (mem.read (f.pc.getValueProduced(),1)[0].value() >>> 4);
+            f.iFn.set (mem.read (f.pc.getValueProduced(),1)[0].value() & 0xf);
+            
             // stat MUX
             switch (f.iCd.getValueProduced()) {
                 case I_HALT:
                 case I_NOP:
                 case I_IRMOVL:
+                case I_RMMOVL:
+                case I_MRMOVL:
                 case I_RET:
                 case I_PUSHL:
                 case I_POPL:
-                    switch (f.iFn.getValueProduced()) {
-                        case 0x0:
-                            f.stat.set (S_AOK);
-                            break;
-                        default:
-                            f.stat.set (S_INS);
-                            break;
-                    }
-                    break;
                 case I_CALL:
                     switch (f.iFn.getValueProduced()) {
                         case 0x0:
-                        case 0x9:
-                            f.stat.set (S_AOK);
-                            break;
-                        default:
-                            f.stat.set (S_INS);
-                            break;
-                    }
-                    break;
-                case I_RMMOVL:
-                case I_MRMOVL:
-                    switch (f.iFn.getValueProduced()) {
-                        case 0x0:
-                        case 0x4:
                             f.stat.set (S_AOK);
                             break;
                         default:
@@ -93,7 +116,6 @@ public class CPU extends AbstractY86CPU.Sequential {
                     }
                     break;
                 case I_OPL:
-                case I_IOPL:
                     switch (f.iFn.getValueProduced()) {
                         case A_ADDL:
                         case A_SUBL:
@@ -113,9 +135,9 @@ public class CPU extends AbstractY86CPU.Sequential {
                     f.stat.set (S_INS);
                     break;
             }
-
+            
             if (f.stat.getValueProduced()==S_AOK) {
-
+                
                 // rA MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_HALT:
@@ -128,17 +150,12 @@ public class CPU extends AbstractY86CPU.Sequential {
                     case I_OPL:
                     case I_PUSHL:
                     case I_POPL:
-                        f.rA.set (mem.read (F.pc.get()+1,1)[0].value() >>> 4);
+                        f.rA.set (mem.read (f.pc.getValueProduced()+1,1)[0].value() >>> 4);
                         break;
-                    case I_CALL:
-                        if (f.iFn.getValueProduced() == 0x9) {
-                            f.rA.set (mem.read (F.pc.get()+1,1)[0].value() >>> 4);
-                            break;
-                        }
                     default:
                         f.rA.set (R_NONE);
                 }
-
+                
                 // rB MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_RRMVXX:
@@ -146,64 +163,48 @@ public class CPU extends AbstractY86CPU.Sequential {
                     case I_RMMOVL:
                     case I_MRMOVL:
                     case I_OPL:
-                    case I_IOPL:
-                        f.rB.set (mem.read (F.pc.get()+1,1)[0].value() & 0xf);
+                        f.rB.set (mem.read (f.pc.getValueProduced()+1,1)[0].value() & 0xf);
                         break;
-                    case I_CALL:
-                        if (f.iFn.getValueProduced() == 0x9) {
-                            f.rB.set (mem.read (F.pc.get()+1,1)[0].value() & 0xf);
-                            break;
-                        }
                     default:
                         f.rB.set (R_NONE);
                 }
-
+                
                 // valC MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_IRMOVL:
                     case I_RMMOVL:
                     case I_MRMOVL:
-                    case I_IOPL:
-                        f.valC.set (mem.readIntegerUnaligned (F.pc.get()+2));
+                        f.valC.set (mem.readIntegerUnaligned (f.pc.getValueProduced()+2));
                         break;
                     case I_JXX:
                     case I_CALL:
-                        if (f.iFn.getValueProduced() == 0x9) {
-                            f.valC.set (mem.readIntegerUnaligned (F.pc.get()+2));
-                        } else {
-                            f.valC.set (mem.readIntegerUnaligned (F.pc.get()+1));
-                        }
+                        f.valC.set (mem.readIntegerUnaligned (f.pc.getValueProduced()+1));
                         break;
                     default:
                         f.valC.set (0);
                 }
-
+                
                 // valP MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_NOP:
                     case I_HALT:
                     case I_RET:
-                        f.valP.set (F.pc.get()+1);
+                        f.valP.set (f.pc.getValueProduced()+1);
                         break;
                     case I_RRMVXX:
                     case I_OPL:
                     case I_PUSHL:
                     case I_POPL:
-                        f.valP.set (F.pc.get()+2);
+                        f.valP.set (f.pc.getValueProduced()+2);
                         break;
                     case I_JXX:
                     case I_CALL:
-                        if (f.iFn.getValueProduced() == 9) {
-                            f.valP.set (F.pc.get()+6);
-                        } else {
-                            f.valP.set (F.pc.get()+5);
-                        }
+                        f.valP.set (f.pc.getValueProduced()+5);
                         break;
-                    case I_IOPL:
                     case I_IRMOVL:
                     case I_RMMOVL:
                     case I_MRMOVL:
-                        f.valP.set (F.pc.get()+6);
+                        f.valP.set (f.pc.getValueProduced()+6);
                         break;
                     default:
                         throw new AssertionError();
@@ -212,26 +213,40 @@ public class CPU extends AbstractY86CPU.Sequential {
         } catch (AbstractMainMemory.InvalidAddressException iae) {
             f.stat.set (S_ADR);
         }
+        
+        // predict PC for next cycle
+        fetch_PredictPC();
     }
-
+    
+    /**
+     * Determine current value of specified register by employing data fowarding, where necessary.
+     * STUDENT CHANGES THIS METHOD TO IMPLEMENT DATA FORWARDING
+     * @param  regNum  number of register being read
+     * @return value of register
+     * @throws RegisterSet.InvalidRegisterNumberException if register number is invalid
+     */
+    private int decode_ReadRegisterWithForwarding (int regNum) throws RegisterSet.InvalidRegisterNumberException, Register.TimingException
+    {
+        return reg.get (regNum);
+    }
+    
     /**
      * The DECODE stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void decode () throws Register.TimingException {
-        System.out.println("decode");
-
+        
         // pass-through signals
         d.stat.set (D.stat.get());
         d.iCd.set  (D.iCd.get());
         d.iFn.set  (D.iFn.get());
         d.valC.set (D.valC.get());
         d.valP.set (D.valP.get());
-
+        
         if (D.stat.get() == S_AOK) {
             try {
-
+                
                 // srcA MUX
                 switch (D.iCd.get()) {
                     case I_RRMVXX:
@@ -247,20 +262,15 @@ public class CPU extends AbstractY86CPU.Sequential {
                     default:
                         d.srcA.set (R_NONE);
                 }
-
+                
                 // srcB MUX
                 switch (D.iCd.get()) {
                     case I_RMMOVL:
                     case I_MRMOVL:
                     case I_OPL:
-                    case I_IOPL:
                         d.srcB.set (D.rB.get());
                         break;
                     case I_CALL:
-                        if (D.iFn.get() == 9) {
-                            d.srcB.set (D.rB.get());
-                            break;
-                        }
                     case I_RET:
                     case I_PUSHL:
                     case I_POPL:
@@ -269,20 +279,15 @@ public class CPU extends AbstractY86CPU.Sequential {
                     default:
                         d.srcB.set (R_NONE);
                 }
-
+                
                 // dstE MUX
                 switch (D.iCd.get()) {
                     case I_RRMVXX:
                     case I_IRMOVL:
-                    case I_IOPL:
                     case I_OPL:
                         d.dstE.set (D.rB.get());
                         break;
                     case I_CALL:
-                        if (M.iFn.get() == 9) {
-                            d.dstE.set (R_NONE);
-                            break;
-                        }
                     case I_RET:
                     case I_PUSHL:
                     case I_POPL:
@@ -291,7 +296,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                     default:
                         d.dstE.set (R_NONE);
                 }
-
+                
                 // dstM MUX
                 switch (D.iCd.get()) {
                     case I_MRMOVL:
@@ -301,29 +306,21 @@ public class CPU extends AbstractY86CPU.Sequential {
                     default:
                         d.dstM.set (R_NONE);
                 }
-
-                try {
-                    // read valA from register file
-                    if (d.srcA.getValueProduced()!=R_NONE)
-                        d.valA.set (reg.get (d.srcA.getValueProduced()));
-                    else
-                        d.valA.set (0);
-
-                    // read valB from register file
-                    if (d.srcB.getValueProduced()!=R_NONE)
-                        d.valB.set (reg.get (d.srcB.getValueProduced()));
-                    else
-                        d.valB.set (0);
-
-                } catch (RegisterSet.InvalidRegisterNumberException irne) {
+                
+                try
+                {
+                  d.valA.set(decode_ReadRegisterWithForwarding(d.srcA.getValueProduced()));
+                  d.valB.set(decode_ReadRegisterWithForwarding(d.srcB.getValueProduced()));
+                }
+                catch (RegisterSet.InvalidRegisterNumberException irne)
+                {
                     throw new InvalidInstructionException (irne);
                 }
-
             } catch (InvalidInstructionException iie) {
                 d.stat.set (S_INS);
             }
         }
-
+        
         if (d.stat.getValueProduced()!=S_AOK) {
             d.srcA.set (R_NONE);
             d.srcB.set (R_NONE);
@@ -331,15 +328,14 @@ public class CPU extends AbstractY86CPU.Sequential {
             d.dstM.set (R_NONE);
         }
     }
-
+    
     /**
      * The EXECUTE stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void execute () throws Register.TimingException {
-        System.out.println("execute");
-
+        
         // pass-through signals
         e.stat.set (E.stat.get());
         e.iCd.set  (E.iCd.get());
@@ -349,9 +345,9 @@ public class CPU extends AbstractY86CPU.Sequential {
         e.dstE.set (E.dstE.get());
         e.dstM.set (E.dstM.get());
         e.valP.set (E.valP.get());
-
+        
         if (E.stat.get()==S_AOK) {
-
+            
             // aluA MUX
             int aluA;
             switch (E.iCd.get()) {
@@ -359,7 +355,6 @@ public class CPU extends AbstractY86CPU.Sequential {
                 case I_OPL:
                     aluA = E.valA.get();
                     break;
-                case I_IOPL:
                 case I_IRMOVL:
                 case I_MRMOVL:
                 case I_RMMOVL:
@@ -370,18 +365,14 @@ public class CPU extends AbstractY86CPU.Sequential {
                     aluA = 4;
                     break;
                 case I_CALL:
-                    if (E.iFn.get() == 9) {
-                        aluA = E.valC.get();
-                        break;
-                    }
                 case I_PUSHL:
                     aluA = -4;
                     break;
                 default:
                     aluA = 0;
             }
-
-            // aluB MUXV
+            
+            // aluB MUX
             int aluB;
             switch (E.iCd.get()) {
                 case I_RRMVXX:
@@ -390,11 +381,6 @@ public class CPU extends AbstractY86CPU.Sequential {
                     break;
                 case I_RMMOVL:
                 case I_MRMOVL:
-                    if (E.iFn.get() == 4) {
-                        aluB = 4 * E.valB.get();
-                        break;
-                    }
-                case I_IOPL:
                 case I_OPL:
                 case I_CALL:
                 case I_RET:
@@ -405,7 +391,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                 default:
                     aluB = 0;
             }
-
+            
             // aluFun and setCC muxes MUX
             int     aluFun;
             boolean setCC;
@@ -422,7 +408,6 @@ public class CPU extends AbstractY86CPU.Sequential {
                     setCC  = false;
                     break;
                 case I_OPL:
-                case I_IOPL:
                     aluFun = E.iFn.get();
                     setCC  = true;
                     break;
@@ -430,9 +415,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                     aluFun = 0;
                     setCC  = false;
             }
-
-            System.out.printf("alu %d %d %d\n", aluA, aluB, aluFun);
-
+            
             // the ALU
             boolean overflow;
             switch (aluFun) {
@@ -468,13 +451,13 @@ public class CPU extends AbstractY86CPU.Sequential {
                 default:
                     overflow = false;
             }
-
+            
             // CC MUX
             if (setCC)
                 p.cc.set (((e.valE.getValueProduced() == 0)? 0x100 : 0) | ((e.valE.getValueProduced() < 0)? 0x10 : 0) | (overflow? 0x1 : 0));
             else
                 p.cc.set (P.cc.get());
-
+            
             // cnd MUX
             boolean cnd;
             switch (E.iCd.get()) {
@@ -513,20 +496,18 @@ public class CPU extends AbstractY86CPU.Sequential {
                     cnd = true;
             }
             e.cnd.set (cnd? 1 : 0);
-
+            
         } else
             e.cnd.set (0);
-        //System.out.printf("execute valE %d %d\n", e.valE.getValueProduced(), e.cnd.getValueProduced());
     }
-
+    
     /**
      * The MEMORY stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void memory () throws Register.TimingException {
-        System.out.println("memory");
-
+        
         // pass-through signals
         m.iCd.set  (M.iCd.get());
         m.iFn.set  (M.iFn.get());
@@ -535,10 +516,10 @@ public class CPU extends AbstractY86CPU.Sequential {
         m.dstE.set (M.dstE.get());
         m.dstM.set (M.dstM.get());
         m.valP.set (M.valP.get());
-
+        
         if (M.stat.get()==S_AOK) {
             try {
-
+                
                 // write Main Memory
                 switch (M.iCd.get()) {
                     case I_RMMOVL:
@@ -546,19 +527,13 @@ public class CPU extends AbstractY86CPU.Sequential {
                         mem.writeInteger (M.valE.get(), M.valA.get());
                         break;
                     case I_CALL:
-                        if (M.iFn.get() != 9) {
-                            mem.writeInteger (M.valE.get(), M.valP.get());
-                        }
+                        mem.writeInteger (M.valE.get(), M.valP.get());
                         break;
                     default:
                 }
-
+                
                 // valM MUX (read main memory)
                 switch (M.iCd.get()) {
-                    case I_CALL:
-                        if (M.iFn.get() != 9) {
-                            break;
-                        }
                     case I_MRMOVL:
                         m.valM.set (mem.readInteger (M.valE.get()));
                         break;
@@ -569,16 +544,16 @@ public class CPU extends AbstractY86CPU.Sequential {
                     default:
                 }
                 m.stat.set (M.stat.get());
-
+                
             } catch (AbstractMainMemory.InvalidAddressException iae) {
                 m.stat.set (S_ADR);
             }
-
+            
         } else {
             m.stat.set (M.stat.get());
         }
     }
-
+    
     /**
      * The WRITE BACK stage of CPU
      * @throws MachineHaltException                       if instruction halts the CPU (e.g., halt instruction).
@@ -586,82 +561,37 @@ public class CPU extends AbstractY86CPU.Sequential {
      * @throws AbstractMainMemory.InvalidAddressException
      * @throws Register.TimingException
      */
-
+    
     @Override protected void writeBack () throws MachineHaltException, InvalidInstructionException, AbstractMainMemory.InvalidAddressException, Register.TimingException {
-        System.out.println("writeBack");
         if (W.stat.get()==S_AOK)
             try {
                 try {
-
+                    
                     // write valE to register file
                     if (W.dstE.get()!=R_NONE && W.cnd.get()==1)
                         reg.set (W.dstE.get(), W.valE.get());
-
+                    
                     // write valM to register file
                     if (W.dstM.get()!=R_NONE)
                         reg.set (W.dstM.get(), W.valM.get());
-
+                    
                     w.stat.set (W.stat.get());
-
+                    
                 } catch (RegisterSet.InvalidRegisterNumberException irne) {
-                    System.out.println("reg set");
                     throw new InvalidInstructionException (irne);
                 }
-
+                
             } catch (InvalidInstructionException iie) {
                 w.stat.set (S_INS);
             }
         else
             w.stat.set (W.stat.get());
-
-        if (W.iCd.get() == I_CALL && W.iFn.get() == 9) {
-            try {
-                reg.set(D.rA.get(), W.valP.get());
-            } catch (RegisterSet.InvalidRegisterNumberException irne) {
-                throw new InvalidInstructionException (irne);
-            }
-        }
-
+        
         if (w.stat.getValueProduced()==S_ADR)
             throw new AbstractMainMemory.InvalidAddressException();
         else if (w.stat.getValueProduced()==S_INS)
             throw new InvalidInstructionException();
         else if (w.stat.getValueProduced()==S_HLT)
             throw new MachineHaltException();
-
-        // Compute newPC
-        if (W.stat.get () == S_AOK)
-            newPC ();
-    }
-
-    /**
-     * Pseudo-stage to compute the new PC value
-     */
-
-    private void newPC () {
-        System.out.println("newPC");
-        switch (E.iCd.get()) {
-            case I_CALL:
-                if (W.iFn.get() == 9) {
-                    w.pc.set(W.valM.get());
-                } else {
-                    w.pc.set (E.valC.get());
-                }
-                break;
-            case I_JXX:
-                if (M.cnd.get()==1)
-                    w.pc.set (E.valC.get());
-                else
-                    w.pc.set (E.valP.get());
-                break;
-            case I_RET:
-                w.pc.set (W.valM.get());
-                break;
-            default:
-                w.pc.set (E.valP.get());
-        }
-        try {
-        System.out.printf("newPC %d\n", w.pc.getValueProduced());
-        } catch(Exception e){}
     }
 }
