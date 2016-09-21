@@ -29,7 +29,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     @Override protected void fetch () throws Register.TimingException {
-        System.out.println("fetch");
+        //System.out.println("fetch");
         try {
 
             // get iCd and iFn
@@ -220,7 +220,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     @Override protected void decode () throws Register.TimingException {
-        System.out.println("decode");
+        //System.out.println("decode");
 
         // pass-through signals
         d.stat.set (D.stat.get());
@@ -338,7 +338,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     @Override protected void execute () throws Register.TimingException {
-        System.out.println("execute");
+        //System.out.println("execute");
 
         // pass-through signals
         e.stat.set (E.stat.get());
@@ -431,7 +431,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                     setCC  = false;
             }
 
-            System.out.printf("alu %d %d %d\n", aluA, aluB, aluFun);
+            //System.out.printf("alu %d %d %d\n", aluA, aluB, aluFun);
 
             // the ALU
             boolean overflow;
@@ -525,7 +525,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     @Override protected void memory () throws Register.TimingException {
-        System.out.println("memory");
+        //System.out.println("memory");
 
         // pass-through signals
         m.iCd.set  (M.iCd.get());
@@ -588,7 +588,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     @Override protected void writeBack () throws MachineHaltException, InvalidInstructionException, AbstractMainMemory.InvalidAddressException, Register.TimingException {
-        System.out.println("writeBack");
+        //System.out.println("writeBack");
         if (W.stat.get()==S_AOK)
             try {
                 try {
@@ -604,7 +604,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                     w.stat.set (W.stat.get());
 
                 } catch (RegisterSet.InvalidRegisterNumberException irne) {
-                    System.out.println("reg set");
+                    //System.out.println("reg set");
                     throw new InvalidInstructionException (irne);
                 }
 
@@ -639,7 +639,7 @@ public class CPU extends AbstractY86CPU.Sequential {
      */
 
     private void newPC () {
-        System.out.println("newPC");
+        //System.out.println("newPC");
         switch (E.iCd.get()) {
             case I_CALL:
                 if (W.iFn.get() == 9) {
@@ -661,7 +661,7 @@ public class CPU extends AbstractY86CPU.Sequential {
                 w.pc.set (E.valP.get());
         }
         try {
-        System.out.printf("newPC %d\n", w.pc.getValueProduced());
+        //System.out.printf("newPC %d\n", w.pc.getValueProduced());
         } catch(Exception e){}
     }
 }
