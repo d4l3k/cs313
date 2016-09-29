@@ -1,0 +1,9 @@
+arch.y86.machine
+arch.y86.machine.pipe
+arch.y86.machine.pipe.student
+arch.y86.machine.pipeminus
+arch.y86.machine.pipeminus.student
+arch.y86.machine.seq
+arch.y86.machine.seq.student
+machine
+util
