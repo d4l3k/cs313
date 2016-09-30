@@ -15,3 +15,8 @@ cases for dstM to the logic statement in isDataHazardOnReg.
 Third bug is related to conditional jumps. Things aren't correctly being
 stalled, when a conditional jump executes. The PC is predicted to follow the
 jump, and executes the first instruction before reverting back.
+
+## Part 2
+
+Changes work with fwdOrder, srcAHzd, sBHazard, aLoadUse, bLoadUse. Doesn't seem
+to work with cmov. Maybe because it's not forwarding the condition codes.
