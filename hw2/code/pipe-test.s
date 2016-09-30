@@ -107,6 +107,12 @@ bLoadUse:
 	halt
 	.pos   0x600
 
+# edi %x
+# ebx 0x10
+# eax 0x1a
+# ecx 0x1a
+# edx 0x1a
+
 takenJmp:
 	irmovl $0x0, %eax
 	irmovl $0x0, %ecx
