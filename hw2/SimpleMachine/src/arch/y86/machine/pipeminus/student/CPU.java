@@ -45,7 +45,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
         }
 
         // Control Hazard: Conditional JXX
-        else if ((D.iCd.get()==I_JXX && D.iFn.get()!=C_NC)) {
+        else if ((D.iCd.get()==I_JXX && D.iFn.get()!=C_NC) || (E.iCd.get()==I_JXX && E.iFn.get()!=C_NC)) {
             F.stall  = true;
             D.bubble = true;
         }
