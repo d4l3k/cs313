@@ -1,17 +1,9 @@
-package arch.y86.machine.pipe.student;
+package arch.y86.machine.pipeminus.student;
 
 import machine.AbstractMainMemory;
 import machine.Register;
 import machine.RegisterSet;
-import ui.Machine;
 import arch.y86.machine.AbstractY86CPU;
-
-
-/**
- * The Simple Machine CPU.
- *
- * Simulate execution of a single cycle of the Simple Machine Y86-Pipe CPU.
- */
 
 public class CPU extends AbstractY86CPU.Pipelined {
 
@@ -37,7 +29,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
      */
     private boolean isDataHazardOnReg (int reg)
     {
-        return reg != R_NONE && (E.dstM.get() == reg);
+        return reg != R_NONE && (E.dstE.get() == reg || M.dstE.get() == reg || W.dstE.get() == reg || E.dstM.get() == reg || M.dstM.get() == reg || W.dstM.get() == reg);
     }
 
     /**
@@ -65,39 +57,44 @@ public class CPU extends AbstractY86CPU.Pipelined {
         }
     }
 
-
-    /**
-     * Pipeline Hazard Control
-     *
-     * IMPLEMENTED BY STUDENT
-     */
-
-    /*
-    @Override protected void pipelineHazardControl () throws Register.TimingException {
-        ;
-    }
-    */
-
     /**
      * The SelectPC part of the fetch stage
-     *
-     * IMPLEMENTED BY STUDENT
      */
 
     @Override protected void fetch_SelectPC () throws Register.TimingException {
-        f.pc.set (F.prPC.get());
+
+        // Taken conditional branch in M
+        if (M.iCd.get()==I_JXX && M.iFn.get()!=C_NC && M.cnd.get()==1)
+            f.pc.set (M.valC.get());
+
+        // Not-taken conditional branch in M
+        else if (M.iCd.get()==I_JXX && M.iFn.get()!=C_NC && M.cnd.get()==0)
+            f.pc.set (M.valP.get());
+
+        // RET in W
+        else if (W.iCd.get()==I_RET)
+            f.pc.set (W.valM.get());
+
+        // Otherwise, predicted value is correct
+        else
+            f.pc.set (F.prPC.get());
     }
 
     /**
      * PC prediction part of FETCH stage.  Predicts PC to fetch in next cycle.
      * Writes the predicted PC into the f.prPC register.
-     *
-     * IMPLEMENTED BY STUDENT
      */
 
     private void fetch_PredictPC () throws Register.TimingException {
         if (f.stat.getValueProduced()==S_AOK)
-            f.prPC.set (f.valP.getValueProduced());
+            switch (f.iCd.getValueProduced()) {
+                case I_JXX:
+                case I_CALL:
+                    f.prPC.set (f.valC.getValueProduced());
+                    break;
+                default:
+                    f.prPC.set (f.valP.getValueProduced());
+            }
         else
             f.prPC.set (f.pc.getValueProduced());
     }
@@ -137,8 +134,8 @@ public class CPU extends AbstractY86CPU.Pipelined {
                             break;
                     }
                     break;
-                case I_RRMVXX:
                 case I_JXX:
+                case I_RRMVXX:
                     switch (f.iFn.getValueProduced()) {
                         case C_NC:
                         case C_LE:
@@ -257,36 +254,6 @@ public class CPU extends AbstractY86CPU.Pipelined {
     }
 
     /**
-     * Determine current value of specified register by employing data fowarding, where necessary.
-     * STUDENT CHANGES THIS METHOD TO IMPLEMENT DATA FORWARDING
-     * @param  regNum  number of register being read
-     * @return value of register
-     * @throws RegisterSet.InvalidRegisterNumberException if register number is invalid
-     */
-    private int decode_ReadRegisterWithForwarding (int regNum) throws RegisterSet.InvalidRegisterNumberException, Register.TimingException
-    {
-        if (regNum == R_NONE) {
-            return 0;
-        }
-        if (E.dstE.get() == regNum) {
-            return e.valE.getValueProduced();
-        }
-        if (M.dstE.get() == regNum) {
-            return M.valE.get();
-        }
-        if (M.dstM.get() == regNum) {
-            return m.valM.getValueProduced();
-        }
-        if (W.dstE.get() == regNum) {
-            return W.valE.get();
-        }
-        if (W.dstM.get() == regNum) {
-            return W.valM.get();
-        }
-        return reg.get (regNum);
-    }
-
-    /**
      * The DECODE stage of CPU
      * @throws Register.TimingException
      */
@@ -363,15 +330,23 @@ public class CPU extends AbstractY86CPU.Pipelined {
                         d.dstM.set (R_NONE);
                 }
 
-                try
-                {
-                  d.valA.set(decode_ReadRegisterWithForwarding(d.srcA.getValueProduced()));
-                  d.valB.set(decode_ReadRegisterWithForwarding(d.srcB.getValueProduced()));
-                }
-                catch (RegisterSet.InvalidRegisterNumberException irne)
-                {
+                try {
+                    // read valA from register file
+                    if (d.srcA.getValueProduced()!=R_NONE)
+                        d.valA.set (reg.get (d.srcA.getValueProduced()));
+                    else
+                        d.valA.set (0);
+
+                    // read valB from register file
+                    if (d.srcB.getValueProduced()!=R_NONE)
+                        d.valB.set (reg.get (d.srcB.getValueProduced()));
+                    else
+                        d.valB.set (0);
+
+                } catch (RegisterSet.InvalidRegisterNumberException irne) {
                     throw new InvalidInstructionException (irne);
                 }
+
             } catch (InvalidInstructionException iie) {
                 d.stat.set (S_INS);
             }

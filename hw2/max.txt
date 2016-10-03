@@ -1,0 +1,4 @@
+cCnt:  0xeb        235
+iCnt:  0x61        97
+
+235 cycles / 97 instructions = 2.47 cycles/instruction (CPI)

@@ -1,0 +1,4 @@
+cCnt:  0x74        116
+iCnt:  0x2c        44
+
+116 cycles / 44 instructions = 2.64 cycles/instruction (CPI)

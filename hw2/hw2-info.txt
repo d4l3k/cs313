@@ -1,0 +1,7 @@
+Tristan Rice  25886145
+
+## Part 2
+
+Changes work with fwdOrder, srcAHzd, sBHazard, aLoadUse, bLoadUse. Doesn't seem
+to work with cmov though that arguably is control and not just a data
+dependency.

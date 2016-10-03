@@ -1,0 +1,4 @@
+cCnt:  0x1e31      7729
+iCnt:  0xbab       2987
+
+7729 cycles / 2987 instructions = 2.59 cycles/instruction (CPI)
