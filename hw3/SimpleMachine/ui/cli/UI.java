@@ -32,19 +32,19 @@ import ui.Machine;
 import ui.AbstractUI;
 
 public class UI extends AbstractUI implements Observer {
-  
+
   final static String CLI_USAGE   = "\t[-t <test-filename>] [-ba <benchmark-arch> -bv <benchmark-variant>] \n\t[-r <reg>[:<count>]]* [-m <addr>[:<count>]]* [-c <state>|all] [-p <start-pc>] [<file>]";
-  
+
   private static enum CliEnv {BENCHMARK_ARCHITECTURE, BENCHMARK_VARIANT};
   private static Env <CliEnv> env = new Env <CliEnv> (CliEnv.class);
   {
     usageList.add (CLI_USAGE);
     envList.add   (env);
   }
-    
+
   boolean        isTraceProgram = false;
   CommandHandler cmd            = this.new CommandHandler ();
-  
+
   final String         argBnchArch;
   final String         argBnchVariant;
   final Integer        argStartPC;
@@ -55,23 +55,23 @@ public class UI extends AbstractUI implements Observer {
   final List <Integer> argShowRegisterCountList;
   final List <Integer> argShowMemoryAddressList;
   final List <Integer> argShowMemoryCountList;
-    
+
   public UI (ArrayList <String> args) throws ArgException {
     super (args);
     machine.addObserver (this);
-    
+
     // Parse Command-Line Args
     argStartPC          = getArgInt  (args, "-p",  false, true, null);
     argBnchArch         = getArg     (args, "-ba", false, true, env.valueOf (CliEnv.BENCHMARK_ARCHITECTURE));
     argBnchVariant      = getArg     (args, "-bv", false, true, env.valueOf (CliEnv.BENCHMARK_VARIANT, ""));
     argTestFilenameList = getArgList (args, "-t",  false, true, true, null);
     argShowCpuState     = getArg     (args, "-c",  false, true, null);
-    
+
     // Get Show-Register List
     ArrayList <Integer> regList = new ArrayList <Integer> ();
     ArrayList <Integer> cntList = new ArrayList <Integer> ();
     while (true) {
-      String regCnt = getArg (args, "-r", false, true, null); 
+      String regCnt = getArg (args, "-r", false, true, null);
       if (regCnt!=null) {
         String[] parts = regCnt.split (":");
         Register reg = machine.registerFile.getRegister (parts[0].replaceAll ("%",""));
@@ -85,7 +85,7 @@ public class UI extends AbstractUI implements Observer {
             } catch (NumberFormatException e) {
               throw new ArgException ("Invalid register count.");
             }
-          else 
+          else
             throw new ArgException ("Invalid register interval.");
           regList.add (machine.registerFile.getAll().indexOf (reg));
           cntList.add (count);
@@ -96,7 +96,7 @@ public class UI extends AbstractUI implements Observer {
     }
     argShowRegisterNumberList = regList;
     argShowRegisterCountList  = cntList;
-    
+
     // Get Show-Memory List
     ArrayList <Integer> addrList  = new ArrayList <Integer> ();
     ArrayList <Integer> countList = new ArrayList <Integer> ();
@@ -129,7 +129,7 @@ public class UI extends AbstractUI implements Observer {
     }
     argShowMemoryAddressList = addrList;
     argShowMemoryCountList   = countList;
-    
+
     // Finish with Args
     argLoadFilenameList = new ArrayList <String> ();
     while (true) {
@@ -143,7 +143,7 @@ public class UI extends AbstractUI implements Observer {
     else if (args.size()!=0)
       throw new ArgException ("Invalid command-line syntax.");
 }
-  
+
   /**
    * Optionally use the jline package for reading from console.  Jline provides shell-like
    * command-line editing for console input.  It's distributed under BSD License.  Put the
@@ -164,9 +164,9 @@ public class UI extends AbstractUI implements Observer {
         jlineConsoleReader                = jlineConsoleReaderClass.newInstance ();
         jlineConsoleReaderReadLine        = jlineConsoleReaderClass.getMethod ("readLine", String.class);
         isUsingJline                      = true;
-      } catch (ClassNotFoundException e) {        
-      } catch (NoSuchMethodException e)  {        
-      } catch (InstantiationException e) {        
+      } catch (ClassNotFoundException e) {
+      } catch (NoSuchMethodException e)  {
+      } catch (InstantiationException e) {
       } catch (IllegalAccessException e) {
       }
       if (!isUsingJline) {
@@ -193,9 +193,9 @@ public class UI extends AbstractUI implements Observer {
       }
     }
   }
-  
+
   class CommandException extends RuntimeException {}
-  
+
   @Override
   public void run () {
     System.out.printf ("%s\n", applicationFullName);
@@ -236,7 +236,7 @@ public class UI extends AbstractUI implements Observer {
       }
     }
   }
-    
+
   private void runFile () {
     for (String filename : argLoadFilenameList) {
       cmd.load (filename);
@@ -246,7 +246,7 @@ public class UI extends AbstractUI implements Observer {
         for (String dsc : regDsc (argShowRegisterNumberList.get(i), argShowRegisterCountList.get(i)))
           System.out.print (dsc);
       for (int i=0; i<argShowMemoryAddressList.size(); i++)
-        for (String dsc : memDsc (argShowMemoryAddressList.get(i), 
+        for (String dsc : memDsc (argShowMemoryAddressList.get(i),
                                   CliParser.CommandHandler.MemFormat.HEX,
                                    EnumSet.allOf (Region.Type.class),
                                   argShowMemoryCountList.get(i)))
@@ -255,11 +255,11 @@ public class UI extends AbstractUI implements Observer {
         cmd.examineProc (argShowCpuState.equalsIgnoreCase ("all")? null: argShowCpuState);
     }
   }
-  
-  ArrayList <String> memDsc (int addr, 
-                             CliParser.CommandHandler.MemFormat format, 
-                             EnumSet <Region.Type> regionSet, 
-                             int count) 
+
+  ArrayList <String> memDsc (int addr,
+                             CliParser.CommandHandler.MemFormat format,
+                             EnumSet <Region.Type> regionSet,
+                             int count)
   {
     ArrayList <String> dsc     = new ArrayList <String> ();
     int                curAddr = addr;
@@ -289,7 +289,7 @@ public class UI extends AbstractUI implements Observer {
           curAddr = cell.getAddress()+cell.length();
           foundMatch = true;
           break;
-        } else if (curAddr<region.getAddress() && (closestRegion==null || region.getAddress()<closestRegion.getAddress())) 
+        } else if (curAddr<region.getAddress() && (closestRegion==null || region.getAddress()<closestRegion.getAddress()))
           closestRegion = region;
       }
       if (!foundMatch) {
@@ -300,10 +300,10 @@ public class UI extends AbstractUI implements Observer {
       }
     }
     if (dsc.size() == 0)
-      dsc.add ("Address out of bounds.\n");
+      dsc.add ("memDsc: Address out of bounds.\n");
     return dsc;
   }
-  
+
   ArrayList <String> regDsc (int regNum, int count) {
     List      <Register> regs = machine.registerFile.getAll ();
     ArrayList <String> dsc    = new ArrayList <String> ();
@@ -319,12 +319,12 @@ public class UI extends AbstractUI implements Observer {
       dsc.add ("No registers selected.\n");
     return dsc;
   }
-  
+
   void showStatus (String msg) {
     if (!msg.isEmpty ())
       System.out.printf ("%s\n",msg);
   }
-  
+
   public void update (Observable o, Object arg) {
     if (o instanceof Machine) {
       Machine.Event e = (Machine.Event) arg;
@@ -387,11 +387,11 @@ public class UI extends AbstractUI implements Observer {
       }
     }
   }
-  
+
   private class CommandHandler implements CliParser.CommandHandler {
-  
+
     String assertDesc = null;
-    
+
     @Override public void load (String filename) {
       assertDesc = null;
       try {
@@ -411,12 +411,12 @@ public class UI extends AbstractUI implements Observer {
         throw new AssertionError (ex);
       }
     }
-    
+
     @Override public void test (String filename, String bnchArch, String bnchVariant) {
       assertDesc = null;
       if (bnchArch==null)
         bnchArch = argBnchArch;
-      if (bnchVariant==null) 
+      if (bnchVariant==null)
         bnchVariant = argBnchVariant!=null? argBnchVariant: "";
       final List <String> checkedState = Arrays.asList ("cc");
       boolean isSuccessful = false;
@@ -458,7 +458,7 @@ public class UI extends AbstractUI implements Observer {
                 break;
               default:
                 throw new AssertionError ();
-            }            
+            }
         }
       } catch (FileNotFoundException e) {
         System.out.print ("File not found.\n");
@@ -478,37 +478,37 @@ public class UI extends AbstractUI implements Observer {
         }
       }
     }
-    
+
     @Override public void run () {
       assertDesc = null;
       showStatus (machine.run (false, 0));
     }
-    
+
     @Override public void step () {
       assertDesc = null;
       showStatus (machine.run (true, 0));
       showWhere ();
     }
-    
+
     @Override public void showWhere () {
       System.out.print (memDsc ((Integer) machine.pc.getValueAt (0,1),
-                                CliParser.CommandHandler.MemFormat.ASM, 
+                                CliParser.CommandHandler.MemFormat.ASM,
                                 EnumSet.of (Region.Type.INSTRUCTIONS),
                                 1).get (0));
     }
-    
+
     @Override public void gotoPC (int pc) {
       assertDesc = null;
       machine.gotoPC (pc);
     }
-    
+
     @Override public void examineMem (int count, CliParser.CommandHandler.MemFormat format, int addr) {
       for (String dsc : memDsc (addr, format, EnumSet.allOf (Region.Type.class), count))
         System.out.print (dsc);
     }
-    
-    @Override public void examineMemAll (CliParser.CommandHandler.MemFormat format, 
-                                         CliParser.CommandHandler.MemRegion region) 
+
+    @Override public void examineMemAll (CliParser.CommandHandler.MemFormat format,
+                                         CliParser.CommandHandler.MemRegion region)
     {
       EnumSet <Region.Type> regionSet;
       switch (region) {
@@ -527,17 +527,17 @@ public class UI extends AbstractUI implements Observer {
       for (String dsc : memDsc (0, format, regionSet, -1))
         System.out.print (dsc);
     }
-    
+
     @Override public void examineReg (int count, int reg) {
       for (String dsc : regDsc (reg, count))
         System.out.print (dsc);
     }
-    
+
     @Override public void examineRegAll () {
       for (String dsc : regDsc (0, -1))
         System.out.print (dsc);
     }
-    
+
     @Override public void examineProc (String state) {
       for (RegisterSet rs : machine.processorState)
         if (state==null || rs.getName().equalsIgnoreCase (state)) {
@@ -547,11 +547,11 @@ public class UI extends AbstractUI implements Observer {
             System.out.printf ("%-4s:  0x%-8x  %d\n", reg.getName(), reg.get(), reg.get());
         }
     }
-    
+
     @Override public void assertDesc (String desc) {
       assertDesc = desc;
     }
-    
+
     @Override public void assertReg (int regNum, int value, String desc) {
       if (assertDesc != null)
         desc = assertDesc + ((desc != null)? (" - " + desc) : "");
@@ -560,7 +560,7 @@ public class UI extends AbstractUI implements Observer {
       if (regValue != value)
         System.out.printf ("XXX ASSERTION FAILURE%s: %%r%d == 0x%x != 0x%x\n", desc!=null? " ("+desc+")" : "", regNum, regValue, value);
     }
-    
+
     @Override public void assertMem (int addr, int value, String desc) {
       if (assertDesc != null)
         desc = assertDesc + ((desc != null)? (" - " + desc) : "");
@@ -579,13 +579,13 @@ public class UI extends AbstractUI implements Observer {
         throw new CommandException ();
       }
     }
-    
+
     @Override public void setReg (int regNum, int value) {
       Register reg = machine.registerFile.getAll().get (regNum);
       reg.set       (value);
       reg.tickClock (Register.ClockTransition.NORMAL);
     }
-    
+
     @Override public void setMem (int addr, int value) {
       if (machine.memory.regionForAddress (addr) != null) {
         try {
@@ -593,7 +593,7 @@ public class UI extends AbstractUI implements Observer {
         } catch (AbstractMainMemory.InvalidAddressException e) {
           System.out.printf ("Invalid address.\n");
           throw new CommandException ();
-        } 
+        }
       } else {
         if (addr < 0 || addr+3 > machine.mainMemory.length() || addr % 4 != 0) {
           System.out.printf ("Invalid address.\n");
@@ -602,12 +602,12 @@ public class UI extends AbstractUI implements Observer {
           machine.memory.add (Datum.valueOf (machine.memory, addr, value, "", ""));
       }
     }
-    
+
     @Override public void setIns (int addr, CliParser.CommandHandler.InsOper oper, String value) {
       Region region = machine.memory.regionForAddress (addr);
       if (region==null) {
         if (addr < 0 || addr + 3 > machine.mainMemory.length() || addr % 2 != 0) {
-          System.out.printf ("Address out of bounds.\n");
+          System.out.printf ("setIns: Address out of bounds.\n");
           throw new CommandException ();
         } else {
           machine.memory.add (Instruction.valueOfPlaceholder (machine.memory, addr, "", ""));
@@ -655,10 +655,10 @@ public class UI extends AbstractUI implements Observer {
         throw new CommandException ();
       }
     }
-      
-    @Override public void debugPoint (CliParser.CommandHandler.DebugType  cmdType, 
-                                      CliParser.CommandHandler.DebugPoint cmdPoint, 
-                                      boolean isEnabled, int value) 
+
+    @Override public void debugPoint (CliParser.CommandHandler.DebugType  cmdType,
+                                      CliParser.CommandHandler.DebugPoint cmdPoint,
+                                      boolean isEnabled, int value)
     {
       switch (cmdPoint) {
         case MEMORY_ACCESS:
@@ -702,7 +702,7 @@ public class UI extends AbstractUI implements Observer {
               throw new AssertionError ();
           }
           switch (point) {
-            case INSTRUCTION: 
+            case INSTRUCTION:
               boolean badAddress = false;
               Region r = machine.memory.regionForAddress (value);
               if (r==null || r.getType()!=Region.Type.INSTRUCTIONS)
@@ -718,7 +718,7 @@ public class UI extends AbstractUI implements Observer {
               break;
             case MEMORY_READ: case MEMORY_WRITE:
               if (machine.memory.regionForAddress (value)==null) {
-                System.out.printf ("Address out of bounds.\n");
+                System.out.printf ("debugPoint: Address out of bounds.\n");
                 throw new CommandException ();
               }
               break;
@@ -727,11 +727,11 @@ public class UI extends AbstractUI implements Observer {
           machine.setDebugPoint (type, point, value, isEnabled);
       }
     }
-    
+
     @Override public void traceProg (boolean isEnabled) {
       isTraceProgram = isEnabled;
     }
-    
+
     @Override public void clearDebugPoints (CliParser.CommandHandler.DebugType cmdType) {
       Machine.DebugType type;
       switch (cmdType) {
@@ -746,7 +746,7 @@ public class UI extends AbstractUI implements Observer {
       }
       machine.clearAllDebugPoints (type);
     }
-    
+
     @Override public void showDebugPoints (CliParser.CommandHandler.DebugType cmdType) {
       Machine.DebugType type;
       switch (cmdType) {
@@ -783,7 +783,7 @@ public class UI extends AbstractUI implements Observer {
         }
       }
     }
-    
+
     @Override public void help () {
       System.out.print ("  l|load <file>|\"<file>\"\n");
       System.out.print ("  test <file> [<against-arch> [<against-variant>]]\n");
@@ -811,7 +811,7 @@ public class UI extends AbstractUI implements Observer {
       System.out.print ("  i|info break|trace\n");
       System.out.print ("  quit\n");
     }
-    
+
     @Override public int getRegisterNumber (String registerName) {
       Register reg = machine.registerFile.getRegister (registerName);
       if (reg!=null)
@@ -821,7 +821,7 @@ public class UI extends AbstractUI implements Observer {
         throw new CommandException ();
       }
     }
-    
+
     @Override public int getLabelValue (String label) {
       Integer value = machine.memory.getLabelMap ().getAddress (label);
       if (value!=null)
@@ -832,5 +832,5 @@ public class UI extends AbstractUI implements Observer {
       }
     }
   }
-  
+
 }

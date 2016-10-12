@@ -643,9 +643,10 @@ public class CPU extends AbstractY86CPU.Pipelined {
         else
             w.stat.set (W.stat.get());
 
-        if (w.stat.getValueProduced()==S_ADR)
+        if (w.stat.getValueProduced()==S_ADR) {
+            System.out.println("S_ADR exception");
             throw new AbstractMainMemory.InvalidAddressException();
-        else if (w.stat.getValueProduced()==S_INS)
+        } else if (w.stat.getValueProduced()==S_INS)
             throw new InvalidInstructionException();
         else if (w.stat.getValueProduced()==S_HLT)
             throw new MachineHaltException();
