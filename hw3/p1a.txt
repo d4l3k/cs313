@@ -1,0 +1,11 @@
+fwdOrder: PASSED, 4 stalls
+srcAHzd: PASSED, 7 stalls
+sBHazard: PASSED, 7 stalls
+aLoadUse: PASSED, 8 stalls
+bLoadUse: PASSED, 8 stalls
+takenJmp: PASSED, 4 stalls
+notTkJmp: PASSED, 6 stalls
+callRtn: PASSED, 7 stalls
+cmov: PASSED, 4 stalls
+
+Stalls counted by cCnt-iCnt
