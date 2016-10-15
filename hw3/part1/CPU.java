@@ -8,7 +8,6 @@ import machine.Register;
 import machine.RegisterSet;
 import ui.Machine;
 import arch.y86.machine.AbstractY86CPU;
-import java.util.Stack;
 
 
 /**
@@ -18,10 +17,6 @@ import java.util.Stack;
  */
 
 public class CPU extends AbstractY86CPU.Pipelined {
-
-    private static final int RETURN_CACHE_SIZE = 3;
-
-    private Stack<Integer> returnCache = new Stack<Integer>();
 
     public CPU (String name, AbstractMainMemory memory) {
         super (name, memory);
@@ -49,35 +44,15 @@ public class CPU extends AbstractY86CPU.Pipelined {
       // Control-Hazard: Conditional Jump
       // Shoot down inflight operations that are mispredicted.
       if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-        M.bubble = true;
-        E.bubble = true;
-
-        // Remove entries from the returnCache if mispredicted I_CALL.
-        if (D.iCd.get() == I_CALL) {
-          if (!this.returnCache.empty()) {
-            this.returnCache.pop();
-          }
-        }
-        if (E.iCd.get() == I_CALL) {
-          if (!this.returnCache.empty()) {
-            this.returnCache.pop();
-          }
-        }
-        // Restore the returnCache since the RET got shot down.
-        if (D.iCd.get() == I_RET && D.iFn.get() == 1) {
-          this.returnCache.push(D.valC.get());
-        }
-        if (E.iCd.get() == I_RET && E.iFn.get() == 1) {
-          this.returnCache.push(E.valC.get());
-        }
-
-        // Return since we don't need to avoid the data hazards on the mispredicted branch.
-        return;
+          M.bubble = true;
+          E.bubble = true;
+          // Return since we don't need to avoid the data hazards on the mispredicted branch.
+          return;
       }
 
       // Data-Hazard: Load-Use
       if ((d.srcA.getValueProduced()!=R_NONE && d.srcA.getValueProduced()==E.dstM.get()) ||
-          (d.srcB.getValueProduced()!=R_NONE && d.srcB.getValueProduced()==E.dstM.get())) {
+               (d.srcB.getValueProduced()!=R_NONE && d.srcB.getValueProduced()==E.dstM.get())) {
         System.out.println("stalling F");
         F.stall  = true;
         D.stall  = true;
@@ -85,18 +60,10 @@ public class CPU extends AbstractY86CPU.Pipelined {
       }
 
       // Control-Hazard: RET
-      if (D.iCd.get() == I_RET && D.iFn.get() != 1 ||
-          E.iCd.get() == I_RET && E.iFn.get() != 1 ||
-          M.iCd.get() == I_RET && W.iFn.get() != 1) {
-        System.out.println("stalling F");
-        F.stall = true;
-        D.bubble = true;
-      }
-
-      // If we stall F, push the returnCache value back into the cache to reuse it.
-      if (F.stall && f.iCd.getValueProduced() == I_RET && f.iFn.getValueProduced() == 1) {
-        System.out.println("pipelineHazardControl: stalling F, thus returning prPC to returnCache");
-        this.returnCache.push(f.prPC.getValueProduced());
+      if (D.iCd.get() == I_RET || E.iCd.get() == I_RET || M.iCd.get() == I_RET) {
+	System.out.println("stalling F");
+          F.stall = true;
+          D.bubble = true;
       }
     }
 
@@ -107,19 +74,21 @@ public class CPU extends AbstractY86CPU.Pipelined {
      */
 
     @Override protected void fetch_SelectPC () throws Register.TimingException {
-        // Forward computed return value (don't if we pulled value from return cache).
-        if (W.iCd.get() == I_RET && W.iFn.get() != 1) {
+        // Forward computed return value.
+        if (W.iCd.get() == I_RET) {
             f.pc.set(W.valM.get());
         // Forward mispredicted jump.
         } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
             f.pc.set(M.valP.get());
-            System.out.printf("selectPC: mispredicted jump\n", M.valP.get());
+            f.prPC.set(M.valP.get());
+	    f.stat.set (S_INS);
+            System.out.printf("mispredicted jump\n", M.valP.get());
         // Default behavior
         } else {
-            System.out.printf("selectPC: normal\n");
+            System.out.printf("normal\n");
             f.pc.set(F.prPC.get());
         }
-        System.out.printf("selectPC: f.pc = %d\n", f.pc.getValueProduced());
+        System.out.printf("f.pc = %d\n", f.pc.getValueProduced());
     }
 
     /**
@@ -131,35 +100,24 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
     @SuppressWarnings ("fallthrough")
     private void fetch_PredictPC () throws Register.TimingException {
-      // Predict PC if in return cache.
       if (f.stat.getValueProduced()==S_AOK) {
         switch (f.iCd.getValueProduced()) {
           case I_JXX:
           case I_CALL:
+            //if (f.iFn.getValueProduced() == 0) {
             // Always predict jump.
-            System.out.println("predictPC: predict jump");
-            f.prPC.set (f.valC.getValueProduced());
-            break;
-          case I_RET:
-            if (!this.returnCache.empty()) {
-              f.prPC.set(this.returnCache.pop());
-              f.iFn.set(1);
-              // Set valC so we can restore the returnCache if this RET gets mispredicted.
-              f.valC.set(f.prPC.getValueProduced());
-              System.out.println("predictPC: from returnCache ========");
-              if (F.stall) {
-                System.out.println("predictPC: stall detected: returning to returnCache");
-                this.returnCache.push(f.prPC.getValueProduced());
-              }
+              System.out.println("predict jump");
+              f.prPC.set (f.valC.getValueProduced());
               break;
-            } 
+            //}
+            // No break here. This is intentional.
           default:
             f.prPC.set (f.valP.getValueProduced());
-            System.out.println("predictPC: valP");
+	    System.out.println("predictPC: valP");
         }
-      }else {
+      } else {
         f.prPC.set (f.pc.getValueProduced());
-        System.out.println("predictPC: pc");
+	System.out.println("predictPC: pc");
       }
       System.out.printf("predictPC: f.prPC = %d\n", f.prPC.getValueProduced());
     }
@@ -180,7 +138,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
             f.iCd.set (mem.read (f.pc.getValueProduced(),1)[0].value() >>> 4);
             f.iFn.set (mem.read (f.pc.getValueProduced(),1)[0].value() & 0xf);
 
-            System.out.printf("fetch: f.pc = %d, iCd = %d, iFn = %d, I_HALT = %d\n", f.pc.getValueProduced(), f.iCd.getValueProduced(), f.iFn.getValueProduced(), I_HALT);
+            System.out.printf("fetch: f.pc = %d, iCd = %d, iFn = %d, I_HALT = %d", f.pc.getValueProduced(), f.iCd.getValueProduced(), f.iFn.getValueProduced(), I_HALT);
 
             // stat MUX
             switch (f.iCd.getValueProduced()) {
@@ -303,15 +261,6 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     case I_JXX:
                     case I_CALL:
                         f.valP.set (f.pc.getValueProduced()+5);
-
-                        // Save valP into the return cache.
-                        if (f.iCd.getValueProduced() == I_CALL) {
-                          this.returnCache.push(f.valP.getValueProduced());
-                          if (this.returnCache.size() > RETURN_CACHE_SIZE) {
-                            this.returnCache.remove(0);
-                          }
-                          System.out.printf("fetch: returnCache.size() = %d\n", this.returnCache.size());
-                        }
                         break;
                     case I_IRMOVL:
                     case I_RMMOVL:
@@ -660,7 +609,6 @@ public class CPU extends AbstractY86CPU.Pipelined {
                         mem.writeInteger (M.valE.get(), M.valA.get());
                         break;
                     case I_CALL:
-                        // Push onto stack.
                         mem.writeInteger (M.valE.get(), M.valP.get());
                         break;
                     default:
