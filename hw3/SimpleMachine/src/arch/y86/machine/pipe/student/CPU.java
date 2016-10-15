@@ -30,6 +30,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
      * @throws Register.TimingException
      */
     @Override protected void cycle () throws InvalidInstructionException, AbstractMainMemory.InvalidAddressException, MachineHaltException, Register.TimingException, ImplementationException {
+        System.out.println("######### CYCLE #########");
         cyclePipe();
     }
 
@@ -40,9 +41,19 @@ public class CPU extends AbstractY86CPU.Pipelined {
      */
 
     @Override protected void pipelineHazardControl () throws Register.TimingException {
+      // Control-Hazard: Conditional Jump
+      // Shoot down inflight operations that are mispredicted.
+      if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
+          M.bubble = true;
+          E.bubble = true;
+          // Return since we don't need to avoid the data hazards on the mispredicted branch.
+          return;
+      }
+
       // Data-Hazard: Load-Use
       if ((d.srcA.getValueProduced()!=R_NONE && d.srcA.getValueProduced()==E.dstM.get()) ||
                (d.srcB.getValueProduced()!=R_NONE && d.srcB.getValueProduced()==E.dstM.get())) {
+        System.out.println("stalling F");
         F.stall  = true;
         D.stall  = true;
         E.bubble = true;
@@ -50,15 +61,9 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
       // Control-Hazard: RET
       if (D.iCd.get() == I_RET || E.iCd.get() == I_RET || M.iCd.get() == I_RET) {
+	System.out.println("stalling F");
           F.stall = true;
           D.bubble = true;
-      }
-
-      // Control-Hazard: Conditional Jump
-      // Shoot down inflight operations that are mispredicted.
-      if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-          M.bubble = true;
-          E.bubble = true;
       }
     }
 
@@ -75,6 +80,8 @@ public class CPU extends AbstractY86CPU.Pipelined {
         // Forward mispredicted jump.
         } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
             f.pc.set(M.valP.get());
+            f.prPC.set(M.valP.get());
+	    f.stat.set (S_INS);
             System.out.printf("mispredicted jump\n", M.valP.get());
         // Default behavior
         } else {
@@ -93,21 +100,26 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
     @SuppressWarnings ("fallthrough")
     private void fetch_PredictPC () throws Register.TimingException {
-      if (f.stat.getValueProduced()==S_AOK)
+      if (f.stat.getValueProduced()==S_AOK) {
         switch (f.iCd.getValueProduced()) {
           case I_JXX:
           case I_CALL:
             //if (f.iFn.getValueProduced() == 0) {
             // Always predict jump.
+              System.out.println("predict jump");
               f.prPC.set (f.valC.getValueProduced());
               break;
             //}
             // No break here. This is intentional.
           default:
             f.prPC.set (f.valP.getValueProduced());
+	    System.out.println("predictPC: valP");
         }
-      else
+      } else {
         f.prPC.set (f.pc.getValueProduced());
+	System.out.println("predictPC: pc");
+      }
+      System.out.printf("predictPC: f.prPC = %d\n", f.prPC.getValueProduced());
     }
 
     /**
@@ -121,9 +133,12 @@ public class CPU extends AbstractY86CPU.Pipelined {
             // determine correct PC for this stage
             fetch_SelectPC();
 
+
             // get iCd and iFn
             f.iCd.set (mem.read (f.pc.getValueProduced(),1)[0].value() >>> 4);
             f.iFn.set (mem.read (f.pc.getValueProduced(),1)[0].value() & 0xf);
+
+            System.out.printf("fetch: f.pc = %d, iCd = %d, iFn = %d, I_HALT = %d", f.pc.getValueProduced(), f.iCd.getValueProduced(), f.iFn.getValueProduced(), I_HALT);
 
             // stat MUX
             switch (f.iCd.getValueProduced()) {

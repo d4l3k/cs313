@@ -23,6 +23,11 @@ iCnt:  0x2c        44
 
 ## new
 
+cCnt:  0x38        56
+iCnt:  0x2c        44
+
+56 cycles / 44 instructions = 1.27 cycles/instruction (CPI)
+
 # heapsort-student.s
 
 ## old
@@ -34,7 +39,8 @@ iCnt:  0xbab       2987
 
 ## new
 
-cCnt:  0x2cac      11436
-iCnt:  0x259e      9630
+cCnt:  0xe76       3702
+iCnt:  0xbab       2987
 
-11436 cycles / 9630 instructions = 1.19 cycles/instruction (CPI)
+
+3702 cycles / 2987 instructions = 1.24 cycles/instruction (CPI)
