@@ -13,9 +13,7 @@ import arch.y86.machine.AbstractY86CPU;
 /**
  * The Simple Machine CPU.
  *
- * Simulate execution of a single cycle of the Simple Machine Y86-Pipe CPU.
- */
-
+ * Simulate execution of a single cycle of the Simple Machine Y86-Pipe CPU.*/
 public class CPU extends AbstractY86CPU.Pipelined {
 
     public CPU (String name, AbstractMainMemory memory) {
@@ -47,19 +45,6 @@ public class CPU extends AbstractY86CPU.Pipelined {
         D.stall  = true;
         E.bubble = true;
       }
-
-      // Control-Hazard: RET
-      if (D.iCd.get() == I_RET || E.iCd.get() == I_RET || M.iCd.get() == I_RET) {
-          F.stall = true;
-          D.bubble = true;
-      }
-
-      // Control-Hazard: Conditional Jump
-      // Shoot down inflight operations that are mispredicted.
-      if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-          M.bubble = true;
-          E.bubble = true;
-      }
     }
 
     /**
@@ -73,12 +58,15 @@ public class CPU extends AbstractY86CPU.Pipelined {
         if (W.iCd.get() == I_RET) {
             f.pc.set(W.valM.get());
         // Forward mispredicted jump.
-        } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-            f.pc.set(M.valP.get());
+        } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC) {
+            if (M.cnd.get() == 0) {
+                f.pc.set(M.valP.get());
+            }/* else {
+                f.pc.set(M.valC.get());
+            }*/
             System.out.printf("mispredicted jump\n", M.valP.get());
         // Default behavior
         } else {
-            System.out.printf("normal\n");
             f.pc.set(F.prPC.get());
         }
         System.out.printf("f.pc = %d\n", f.pc.getValueProduced());
@@ -93,21 +81,19 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
     @SuppressWarnings ("fallthrough")
     private void fetch_PredictPC () throws Register.TimingException {
-      if (f.stat.getValueProduced()==S_AOK)
+      if (f.stat.getValueProduced()==S_AOK) {
         switch (f.iCd.getValueProduced()) {
           case I_JXX:
           case I_CALL:
-            //if (f.iFn.getValueProduced() == 0) {
-            // Always predict jump.
+              // Predict all jumps taken.
               f.prPC.set (f.valC.getValueProduced());
               break;
-            //}
-            // No break here. This is intentional.
           default:
             f.prPC.set (f.valP.getValueProduced());
         }
-      else
+      } else {
         f.prPC.set (f.pc.getValueProduced());
+      }
     }
 
     /**
@@ -257,6 +243,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 }
             }
         } catch (AbstractMainMemory.InvalidAddressException iae) {
+            iae.printStackTrace(System.out);
             f.stat.set (S_ADR);
         }
 
@@ -613,6 +600,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 m.stat.set (M.stat.get());
 
             } catch (AbstractMainMemory.InvalidAddressException iae) {
+                iae.printStackTrace(System.out);
                 m.stat.set (S_ADR);
             }
 
@@ -654,9 +642,10 @@ public class CPU extends AbstractY86CPU.Pipelined {
         else
             w.stat.set (W.stat.get());
 
-        if (w.stat.getValueProduced()==S_ADR)
+        if (w.stat.getValueProduced()==S_ADR) {
+            System.out.println("S_ADR exception");
             throw new AbstractMainMemory.InvalidAddressException();
-        else if (w.stat.getValueProduced()==S_INS)
+        } else if (w.stat.getValueProduced()==S_INS)
             throw new InvalidInstructionException();
         else if (w.stat.getValueProduced()==S_HLT)
             throw new MachineHaltException();

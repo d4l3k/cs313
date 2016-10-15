@@ -17,11 +17,11 @@ import arch.y86.machine.AbstractY86CPU;
  */
 
 public class CPU extends AbstractY86CPU.Pipelined {
-
+    
     public CPU (String name, AbstractMainMemory memory) {
         super (name, memory);
     }
-
+    
     /**
      * Execute one clock cycle with all stages executing in parallel.
      * @throws InvalidInstructionException                if instruction is invalid (including invalid register number).
@@ -32,13 +32,13 @@ public class CPU extends AbstractY86CPU.Pipelined {
     @Override protected void cycle () throws InvalidInstructionException, AbstractMainMemory.InvalidAddressException, MachineHaltException, Register.TimingException, ImplementationException {
         cyclePipe();
     }
-
+    
     /**
      * Pipeline Hazard Control
      *
      * IMPLEMENTED BY STUDENT
      */
-
+    
     @Override protected void pipelineHazardControl () throws Register.TimingException {
       // Data-Hazard: Load-Use
       if ((d.srcA.getValueProduced()!=R_NONE && d.srcA.getValueProduced()==E.dstM.get()) ||
@@ -47,61 +47,34 @@ public class CPU extends AbstractY86CPU.Pipelined {
         D.stall  = true;
         E.bubble = true;
       }
-
-      // Control-Hazard: RET
-      if (D.iCd.get() == I_RET || E.iCd.get() == I_RET || M.iCd.get() == I_RET) {
-          F.stall = true;
-          D.bubble = true;
-      }
-
-      // Control-Hazard: Conditional Jump
-      // Shoot down inflight operations that are mispredicted.
-      if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-          M.bubble = true;
-          E.bubble = true;
-      }
     }
-
+    
     /**
      * The SelectPC part of the fetch stage
      *
      * IMPLEMENTED BY STUDENT
      */
-
+    
     @Override protected void fetch_SelectPC () throws Register.TimingException {
-        // Forward computed return value.
-        if (W.iCd.get() == I_RET) {
-            f.pc.set(W.valM.get());
-        // Forward mispredicted jump.
-        } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-            f.pc.set(M.valP.get());
-            System.out.printf("mispredicted jump\n", M.valP.get());
-        // Default behavior
-        } else {
-            System.out.printf("normal\n");
-            f.pc.set(F.prPC.get());
-        }
-        System.out.printf("f.pc = %d\n", f.pc.getValueProduced());
+        f.pc.set (F.prPC.get());
     }
-
+    
     /**
      * PC prediction part of FETCH stage.  Predicts PC to fetch in next cycle.
      * Writes the predicted PC into the f.prPC register.
      *
      * IMPLEMENTED BY STUDENT
      */
-
+    
     @SuppressWarnings ("fallthrough")
     private void fetch_PredictPC () throws Register.TimingException {
       if (f.stat.getValueProduced()==S_AOK)
         switch (f.iCd.getValueProduced()) {
           case I_JXX:
           case I_CALL:
-            //if (f.iFn.getValueProduced() == 0) {
-            // Always predict jump.
+            if (f.iFn.getValueProduced() == 0) {
               f.prPC.set (f.valC.getValueProduced());
               break;
-            //}
             // No break here. This is intentional.
           default:
             f.prPC.set (f.valP.getValueProduced());
@@ -114,17 +87,17 @@ public class CPU extends AbstractY86CPU.Pipelined {
      * The FETCH stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void fetch () throws Register.TimingException {
         try {
-
+            
             // determine correct PC for this stage
             fetch_SelectPC();
-
+            
             // get iCd and iFn
             f.iCd.set (mem.read (f.pc.getValueProduced(),1)[0].value() >>> 4);
             f.iFn.set (mem.read (f.pc.getValueProduced(),1)[0].value() & 0xf);
-
+            
             // stat MUX
             switch (f.iCd.getValueProduced()) {
                 case I_HALT:
@@ -181,9 +154,9 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     f.stat.set (S_INS);
                     break;
             }
-
+            
             if (f.stat.getValueProduced()==S_AOK) {
-
+                
                 // rA MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_HALT:
@@ -201,7 +174,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         f.rA.set (R_NONE);
                 }
-
+                
                 // rB MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_RRMVXX:
@@ -214,7 +187,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         f.rB.set (R_NONE);
                 }
-
+                
                 // valC MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_IRMOVL:
@@ -229,7 +202,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         f.valC.set (0);
                 }
-
+                
                 // valP MUX
                 switch (f.iCd.getValueProduced()) {
                     case I_NOP:
@@ -259,11 +232,11 @@ public class CPU extends AbstractY86CPU.Pipelined {
         } catch (AbstractMainMemory.InvalidAddressException iae) {
             f.stat.set (S_ADR);
         }
-
+        
         // predict PC for next cycle
         fetch_PredictPC();
     }
-
+    
     /**
      * Determine current value of specified register by employing data fowarding, where necessary.
      * STUDENT CHANGES THIS METHOD TO IMPLEMENT DATA FORWARDING
@@ -293,27 +266,27 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
       if (regNum == W.dstE.get() && W.cnd.get() == 1)
         return W.valE.get();
-
+      
       return reg.get (regNum);
     }
-
+    
     /**
      * The DECODE stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void decode () throws Register.TimingException {
-
+        
         // pass-through signals
         d.stat.set (D.stat.get());
         d.iCd.set  (D.iCd.get());
         d.iFn.set  (D.iFn.get());
         d.valC.set (D.valC.get());
         d.valP.set (D.valP.get());
-
+        
         if (D.stat.get() == S_AOK) {
             try {
-
+                
                 // srcA MUX
                 switch (D.iCd.get()) {
                     case I_RRMVXX:
@@ -329,7 +302,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         d.srcA.set (R_NONE);
                 }
-
+                
                 // srcB MUX
                 switch (D.iCd.get()) {
                     case I_RMMOVL:
@@ -346,7 +319,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         d.srcB.set (R_NONE);
                 }
-
+                
                 // dstE MUX
                 switch (D.iCd.get()) {
                     case I_RRMVXX:
@@ -363,7 +336,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         d.dstE.set (R_NONE);
                 }
-
+                
                 // dstM MUX
                 switch (D.iCd.get()) {
                     case I_MRMOVL:
@@ -373,7 +346,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                         d.dstM.set (R_NONE);
                 }
-
+                
                 try
                 {
                   d.valA.set(decode_ReadRegisterWithForwarding(d.srcA.getValueProduced()));
@@ -387,7 +360,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 d.stat.set (S_INS);
             }
         }
-
+        
         if (d.stat.getValueProduced()!=S_AOK) {
             d.srcA.set (R_NONE);
             d.srcB.set (R_NONE);
@@ -395,14 +368,14 @@ public class CPU extends AbstractY86CPU.Pipelined {
             d.dstM.set (R_NONE);
         }
     }
-
+    
     /**
      * The EXECUTE stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void execute () throws Register.TimingException {
-
+        
         // pass-through signals
         e.stat.set (E.stat.get());
         e.iCd.set  (E.iCd.get());
@@ -412,9 +385,9 @@ public class CPU extends AbstractY86CPU.Pipelined {
         e.dstE.set (E.dstE.get());
         e.dstM.set (E.dstM.get());
         e.valP.set (E.valP.get());
-
+        
         if (E.stat.get()==S_AOK) {
-
+            
             // aluA MUX
             int aluA;
             switch (E.iCd.get()) {
@@ -438,7 +411,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 default:
                     aluA = 0;
             }
-
+            
             // aluB MUX
             int aluB;
             switch (E.iCd.get()) {
@@ -458,7 +431,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 default:
                     aluB = 0;
             }
-
+            
             // aluFun and setCC muxes MUX
             int     aluFun;
             boolean setCC;
@@ -482,7 +455,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     aluFun = 0;
                     setCC  = false;
             }
-
+            
             // the ALU
             boolean overflow;
             switch (aluFun) {
@@ -518,13 +491,13 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 default:
                     overflow = false;
             }
-
+            
             // CC MUX
             if (setCC)
                 p.cc.set (((e.valE.getValueProduced() == 0)? 0x100 : 0) | ((e.valE.getValueProduced() < 0)? 0x10 : 0) | (overflow? 0x1 : 0));
             else
                 p.cc.set (P.cc.get());
-
+            
             // cnd MUX
             boolean cnd;
             switch (E.iCd.get()) {
@@ -563,18 +536,18 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     cnd = true;
             }
             e.cnd.set (cnd? 1 : 0);
-
+            
         } else
             e.cnd.set (0);
     }
-
+    
     /**
      * The MEMORY stage of CPU
      * @throws Register.TimingException
      */
-
+    
     @Override protected void memory () throws Register.TimingException {
-
+        
         // pass-through signals
         m.iCd.set  (M.iCd.get());
         m.iFn.set  (M.iFn.get());
@@ -583,10 +556,10 @@ public class CPU extends AbstractY86CPU.Pipelined {
         m.dstE.set (M.dstE.get());
         m.dstM.set (M.dstM.get());
         m.valP.set (M.valP.get());
-
+        
         if (M.stat.get()==S_AOK) {
             try {
-
+                
                 // write Main Memory
                 switch (M.iCd.get()) {
                     case I_RMMOVL:
@@ -598,7 +571,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
                         break;
                     default:
                 }
-
+                
                 // valM MUX (read main memory)
                 switch (M.iCd.get()) {
                     case I_MRMOVL:
@@ -611,16 +584,16 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     default:
                 }
                 m.stat.set (M.stat.get());
-
+                
             } catch (AbstractMainMemory.InvalidAddressException iae) {
                 m.stat.set (S_ADR);
             }
-
+            
         } else {
             m.stat.set (M.stat.get());
         }
     }
-
+    
     /**
      * The WRITE BACK stage of CPU
      * @throws MachineHaltException                       if instruction halts the CPU (e.g., halt instruction).
@@ -628,32 +601,32 @@ public class CPU extends AbstractY86CPU.Pipelined {
      * @throws AbstractMainMemory.InvalidAddressException
      * @throws Register.TimingException
      */
-
+    
     @Override protected void writeBack () throws MachineHaltException, InvalidInstructionException, AbstractMainMemory.InvalidAddressException, Register.TimingException {
         if (W.stat.get()==S_AOK)
             try {
                 try {
-
+                    
                     // write valE to register file
                     if (W.dstE.get()!=R_NONE && W.cnd.get()==1)
                         reg.set (W.dstE.get(), W.valE.get());
-
+                    
                     // write valM to register file
                     if (W.dstM.get()!=R_NONE)
                         reg.set (W.dstM.get(), W.valM.get());
-
+                    
                     w.stat.set (W.stat.get());
-
+                    
                 } catch (RegisterSet.InvalidRegisterNumberException irne) {
                     throw new InvalidInstructionException (irne);
                 }
-
+                
             } catch (InvalidInstructionException iie) {
                 w.stat.set (S_INS);
             }
         else
             w.stat.set (W.stat.get());
-
+        
         if (w.stat.getValueProduced()==S_ADR)
             throw new AbstractMainMemory.InvalidAddressException();
         else if (w.stat.getValueProduced()==S_INS)
