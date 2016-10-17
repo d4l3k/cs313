@@ -1,1 +1,3 @@
-Added returnCache to the program.
+Added a returnCache.
+
+Added dynamic jump prediction using a bit set of the previous jumps at that PC.

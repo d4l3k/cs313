@@ -1,0 +1,28 @@
+# max.s
+
+cCnt:  0x75        117
+iCnt:  0x61        97
+
+117 cycles / 97 instructions = 1.206 cycles/instruction (CPI)
+
+# sum.s
+
+cCnt:  0x40        64
+iCnt:  0x2c        44
+
+64 cycles / 44 instructions = 1.455 cycles/instruction (CPI)
+
+# original heapsort.s
+
+cCnt:  0xc41       3137
+iCnt:  0xbab       2987
+
+3137 cycles / 2987 instructions = 1.050 cycles/instruction (CPI)
+
+# improved heapsort.s
+
+cCnt:  0xc19       3097
+iCnt:  0xbab       2987
+
+3097 cycles / 2987 instructions = 1.037 cycles/instruction (CPI)
+
