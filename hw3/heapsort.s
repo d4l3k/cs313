@@ -142,17 +142,18 @@ heapify_array:
 	divl   %ebx, %eax
 	rrmovl %eax, %edi       # i = %eax
 
-ha_loop:
 	andl %edi, %edi       # check if i < 0
 	jl   ha_finish
+
+ha_loop:
 
 	rrmovl %edi, %eax       # Set %eax = i, %ebx = last
 	rrmovl %esi, %ebx
 	call   heapify_node     # Heapify the node
 
 	irmovl $1, %eax         # i--
-	subl   %eax, %edi
-	jmp    ha_loop
+	subl   %eax, %edi # check if i >=0
+	jge    ha_loop
 
 ha_finish:
 	popl %edi
@@ -194,10 +195,10 @@ heapsort:
 	rrmovl %eax, %esi       # %esi (i) = last
 	call   heapify_array    # heapify_array(last)
 
-hs_loop:
 	andl %esi, %esi # Test if i < 0
 	jl   hs_finish
 
+hs_loop:
 	rrmovl %esi, %eax       # max = extract_max(i)
 	call   extract_max
 
@@ -208,7 +209,7 @@ hs_loop:
 
 	irmovl $1, %edx         # i--
 	subl   %edx, %esi
-	jmp    hs_loop
+	jge    hs_loop
 
 hs_finish:
 	popl %esi

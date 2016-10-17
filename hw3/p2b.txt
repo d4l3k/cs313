@@ -5,3 +5,6 @@ heap[last]` and then shift the next irmovl up to space out mrmovl and rmmovl.
 
 hs_loop: used %edx instead of %eax after rmmovl.
 
+Reworked some loops to do conditional jumps backwards jump at the end instead of
+a forward jump at the top.
+
