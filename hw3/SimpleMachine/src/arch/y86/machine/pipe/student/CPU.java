@@ -19,7 +19,7 @@ import java.util.HashMap;
 
 public class CPU extends AbstractY86CPU.Pipelined {
     private static final int RETURN_CACHE_SIZE = 3;
-    private static final int JUMP_CACHE_BITS = 8;
+    private static final int JUMP_CACHE_BITS = 4;
 
     private Stack<Integer> returnCache = new Stack<Integer>();
     private HashMap<Integer, Integer> jumpCache = new HashMap<Integer, Integer>();
@@ -55,7 +55,7 @@ public class CPU extends AbstractY86CPU.Pipelined {
     protected void pipelineHazardControl() throws Register.TimingException {
         // Control-Hazard: Conditional Jump
         // Shoot down inflight operations that are mispredicted.
-        if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
+        if (MisMispredicted()) {
             M.bubble = true;
             E.bubble = true;
 
@@ -107,6 +107,16 @@ public class CPU extends AbstractY86CPU.Pipelined {
         }
     }
 
+    private int McorrectPC() {
+      return (M.cnd.get() == 0) ? M.valP.get() : M.valC.get();
+    }
+
+    private boolean MisMispredicted() {
+      int Epc = E.valP.get() - insSize(E.iCd.get());
+      return M.iCd.get() == I_JXX && M.iFn.get() != C_NC && Epc != McorrectPC();
+    }
+
+
     /**
      * The SelectPC part of the fetch stage
      *
@@ -119,8 +129,8 @@ public class CPU extends AbstractY86CPU.Pipelined {
         if (W.iCd.get() == I_RET && W.iFn.get() != 1) {
             f.pc.set(W.valM.get());
             // Forward mispredicted jump.
-        } else if (M.iCd.get() == I_JXX && M.iFn.get() != C_NC && M.cnd.get() == 0) {
-            f.pc.set(M.valP.get());
+        } else if (MisMispredicted()) {
+            f.pc.set(McorrectPC());
             System.out.printf("selectPC: mispredicted jump\n", M.valP.get());
             // Default behavior
         } else {
@@ -148,9 +158,14 @@ public class CPU extends AbstractY86CPU.Pipelined {
                     // Always predict jump for C_NC.
                     if (f.iFn.getValueProduced() == C_NC) {
                         f.prPC.set(f.valC.getValueProduced());
+                        break;
                     }
                     int x = 0;
                     int pc = f.valP.getValueProduced() - 5;
+                    if (!jumpCache.containsValue(pc)) {
+                      //jumpCache.put(pc, 0b11111111);
+                      jumpCache.put(pc, 0);
+                    }
                     for (int bits = jumpCache.get(pc); bits != 0; bits = bits >>> 1) {
                         x += bits & 1;
                     }
@@ -306,39 +321,16 @@ public class CPU extends AbstractY86CPU.Pipelined {
                 }
 
                 // valP MUX
-                switch (f.iCd.getValueProduced()) {
-                    case I_NOP:
-                    case I_HALT:
-                    case I_RET:
-                        f.valP.set(f.pc.getValueProduced() + 1);
-                        break;
-                    case I_RRMVXX:
-                    case I_OPL:
-                    case I_PUSHL:
-                    case I_POPL:
-                        f.valP.set(f.pc.getValueProduced() + 2);
-                        break;
-                    case I_JXX:
-                    case I_CALL:
-                        f.valP.set(f.pc.getValueProduced() + 5);
+                f.valP.set(f.pc.getValueProduced() + insSize(f.iCd.getValueProduced()));
 
-                        // Save valP into the return cache.
-                        if (f.iCd.getValueProduced() == I_CALL) {
-                            this.returnCache.push(f.valP.getValueProduced());
-                            if (this.returnCache.size() > RETURN_CACHE_SIZE) {
-                                this.returnCache.remove(0);
-                            }
-                            System.out.printf(
-                                "fetch: returnCache.size() = %d\n", this.returnCache.size());
-                        }
-                        break;
-                    case I_IRMOVL:
-                    case I_RMMOVL:
-                    case I_MRMOVL:
-                        f.valP.set(f.pc.getValueProduced() + 6);
-                        break;
-                    default:
-                        throw new AssertionError();
+                // Save valP into the return cache.
+                if (f.iCd.getValueProduced() == I_CALL) {
+                  this.returnCache.push(f.valP.getValueProduced());
+                  if (this.returnCache.size() > RETURN_CACHE_SIZE) {
+                    this.returnCache.remove(0);
+                  }
+                  System.out.printf(
+                      "fetch: returnCache.size() = %d\n", this.returnCache.size());
                 }
             }
         } catch (AbstractMainMemory.InvalidAddressException iae) {
@@ -347,6 +339,29 @@ public class CPU extends AbstractY86CPU.Pipelined {
 
         // predict PC for next cycle
         fetch_PredictPC();
+    }
+
+    private int insSize(int iCd) {
+      switch (iCd) {
+        case I_NOP:
+        case I_HALT:
+        case I_RET:
+          return 1;
+        case I_RRMVXX:
+        case I_OPL:
+        case I_PUSHL:
+        case I_POPL:
+          return 2;
+        case I_JXX:
+        case I_CALL:
+          return 5;
+        case I_IRMOVL:
+        case I_RMMOVL:
+        case I_MRMOVL:
+          return 6;
+        default:
+          throw new AssertionError();
+      }
     }
 
     /**
