@@ -1,0 +1,7 @@
+swap: Reordered rmmovl lines to avoid data hazards.
+
+extract_max: Use %edx as the intermediate value when doing `heap[0] =
+heap[last]` and then shift the next irmovl up to space out mrmovl and rmmovl.
+
+hs_loop: used %edx instead of %eax after rmmovl.
+

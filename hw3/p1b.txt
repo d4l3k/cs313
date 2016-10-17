@@ -44,3 +44,8 @@ iCnt:  0xbab       2987
 
 
 3702 cycles / 2987 instructions = 1.24 cycles/instruction (CPI)
+
+## supernew
+
+cCnt:  0xd1d       3357
+iCnt:  0xbab       2987
