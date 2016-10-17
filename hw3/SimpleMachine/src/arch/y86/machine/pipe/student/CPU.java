@@ -18,7 +18,7 @@ import java.util.HashMap;
  */
 
 public class CPU extends AbstractY86CPU.Pipelined {
-    private static final int RETURN_CACHE_SIZE = 3;
+    private static final int RETURN_CACHE_SIZE = 100;
     private static final int JUMP_CACHE_BITS = 4;
 
     private Stack<Integer> returnCache = new Stack<Integer>();
@@ -85,16 +85,17 @@ public class CPU extends AbstractY86CPU.Pipelined {
         // Data-Hazard: Load-Use
         if ((d.srcA.getValueProduced() != R_NONE && d.srcA.getValueProduced() == E.dstM.get())
             || (d.srcB.getValueProduced() != R_NONE && d.srcB.getValueProduced() == E.dstM.get())) {
-            System.out.println("stalling F");
+            System.out.println("Load-Use: stalling F");
             F.stall = true;
             D.stall = true;
             E.bubble = true;
         }
 
         // Control-Hazard: RET
-        if (D.iCd.get() == I_RET && D.iFn.get() != 1 || E.iCd.get() == I_RET && E.iFn.get() != 1
-            || M.iCd.get() == I_RET && W.iFn.get() != 1) {
-            System.out.println("stalling F");
+        if ((D.iCd.get() == I_RET && D.iFn.get() != 1)
+            || (E.iCd.get() == I_RET && E.iFn.get() != 1)
+            || (M.iCd.get() == I_RET && M.iFn.get() != 1)) {
+            System.out.println("RET: stalling F");
             F.stall = true;
             D.bubble = true;
         }

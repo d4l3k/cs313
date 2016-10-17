@@ -49,3 +49,13 @@ iCnt:  0xbab       2987
 
 cCnt:  0xd1d       3357
 iCnt:  0xbab       2987
+
+## return cache + dynamic prediction
+cCnt:  0xcb5       3253
+iCnt:  0xbab       2987
+
+## + fixed bug
+
+cCnt:  0xc19       3097
+iCnt:  0xbab       2987
+
