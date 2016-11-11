@@ -1,0 +1,33 @@
+Tristan Rice
+q7w9a, 25886145
+
+Time Taken: 4h
+
+# Question 1
+## a)
+
+set-index bits: log2(8) = 3
+block-offset bits: log2(8) = 3
+tag bits: 15 - (3+3) = 9
+
+
+14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0
+-- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | --
+CT | CT | CT | CT | CT | CT | CT | CT | CT | CI | CI | CI | CO | CO | CO
+
+## b)
+
+```ruby
+[13] pry(main)> [0x0362, 0x7BFE, 0x3FC9, 0x0361].map{|n| [(n >> 3) & 0b111, n >> 6] }.map{|n| n.map{|n| n.to_s 16}}
+=> [["4", "d"], ["7", "1ef"], ["1", "ff"], ["4", "d"]]
+```
+
+Operation | Address | Cache Set | Tag | Hit? | Value
+--------- | ------- | --------- | --- | ---- | -----
+Read      | 0x0362  | 4         | 00D | no   | unknown, since line isn't valid
+Read      | 0x7BFE  | 7         | 1EF | no   | unknown, since line not in cache
+Read      | 0x3FC9  | 1         | 0FF | no   | unknown, since line not in cache
+Read      | 0x0361  | 4         | 00D | yes  | unknown, since line has been refreshed
+
+
+# Question 2
