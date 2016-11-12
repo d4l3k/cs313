@@ -4,6 +4,7 @@
 #include "cache.h"
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /*
  * Initialize a new cache line with a given block size.
@@ -96,10 +97,7 @@ cache_t *cache_new(size_t num_blocks, size_t block_size, unsigned int associativ
 static int cache_line_check_validity_and_tag(cache_line_t *cache_line, intptr_t tag)
 {
     /* TODO: TO BE COMPLETED BY THE STUDENT */
-    if (cache_line->tag != tag) {
-	return 0;
-    }
-    return cache_line->is_valid;
+    return cache_line->is_valid && cache_line->tag == tag;
 }
 
 /*
@@ -108,7 +106,7 @@ static int cache_line_check_validity_and_tag(cache_line_t *cache_line, intptr_t 
 static int cache_line_retrieve_data(cache_line_t *cache_line, size_t offset)
 {
     /* TODO: TO BE COMPLETED BY THE STUDENT */
-    return ((int *)cache_line->data)[offset];
+    return ((int *)(cache_line->data))[offset/sizeof(int)];
 }
 
 /*
@@ -208,19 +206,30 @@ int cache_read(cache_t *cache, int *address)
 {
     intptr_t addr = (intptr_t)address;
     int block_offset = addr & cache->block_offset_mask;
-    int cache_index = (addr & cache->cache_index_mask) >> cache->cache_index_shift;
-    int tag = addr >> (cache->cache_index_shift + cache->tag_shift);
+    assert(block_offset < cache->block_size);
+
+    int cache_index = (addr >> cache->cache_index_shift) & cache->cache_index_mask;
+    assert(cache_index < cache->num_sets);
+
+    int tag = addr >> (cache->tag_shift);
+
+    // Assert that the tag is completely being used.
+    int computed = (block_offset + (cache_index << cache->cache_index_shift) + (tag <<  cache->tag_shift));
+    assert(addr == computed);
+
     cache_set_t *set = &cache->sets[cache_index];
     cache_line_t *line = cache_set_find_matching_line(cache, set, tag);
     cache->access_count++;
-    if (!line) {
+    int found = line != NULL;
+    if (!found) {
 	cache->miss_count++;
 	line = cache_set_add(cache, set, address, tag);
     }
+    assert(line);
+
     int val = cache_line_retrieve_data(line, block_offset);
-    if (val != *address) {
-	printf("fuuuuck, tag %#x, val %#x, *address %#x\n", tag, val, *address);
-    }
+    //printf("cache_index %#x, tag %#x, block_offset %#x, found %d, addr %#x\n", cache_index, tag, block_offset, found, address);
+    assert(val == *address);
     return val;
 }
 

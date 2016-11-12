@@ -72,6 +72,7 @@ int print_stats()
     {
 	printf("Miss rate = %8.4f\n", (double) mc/ac);
     }
+    printf("Counts, miss %d, access %d\n", mc, ac);
 }
 
 int main()
