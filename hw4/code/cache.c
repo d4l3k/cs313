@@ -9,8 +9,7 @@
 /*
  * Initialize a new cache line with a given block size.
  */
-static void cache_line_init(cache_line_t *cache_line, size_t block_size)
-{
+static void cache_line_init(cache_line_t *cache_line, size_t block_size) {
     cache_line->is_valid = 0;
     cache_line->data = (unsigned char *) malloc(block_size * sizeof(unsigned char));
 }
@@ -20,10 +19,9 @@ static void cache_line_init(cache_line_t *cache_line, size_t block_size)
  */
 static void cache_set_init(cache_set_t *cache_set, unsigned int associativity, size_t block_size)
 {
-    int i;
     cache_set->cache_lines = (cache_line_t **) malloc(associativity * sizeof (cache_line_t *));
 
-    for (i = 0; i < associativity; i++)
+    for (unsigned int i = 0; i < associativity; i++)
     {
 	cache_set->cache_lines[i] = (cache_line_t *) malloc(sizeof(cache_line_t));
 	cache_line_init(cache_set->cache_lines[i], block_size);
@@ -33,7 +31,7 @@ static void cache_set_init(cache_set_t *cache_set, unsigned int associativity, s
 /*
  * Compute the shift and mask given the number of bytes/sets.
  */
-static void get_shift_and_mask(int value, int *shift, int *mask, int init_shift)
+static void get_shift_and_mask(int value, intptr_t *shift, intptr_t *mask, int init_shift)
 {
     *mask = 0;
     *shift = init_shift;
@@ -53,8 +51,6 @@ static void get_shift_and_mask(int value, int *shift, int *mask, int init_shift)
  */
 cache_t *cache_new(size_t num_blocks, size_t block_size, unsigned int associativity, int policies)
 {
-    int i, j;
-
     /*
      * Create the cache and initialize constant fields.
      */
@@ -80,7 +76,7 @@ cache_t *cache_new(size_t num_blocks, size_t block_size, unsigned int associativ
      * Initialize cache sets.
      */
     cache->sets = (cache_set_t *) malloc(cache->num_sets * sizeof (cache_set_t));
-    for (i = 0; i < cache->num_sets; i++)
+    for (unsigned int i = 0; i < cache->num_sets; i++)
     {
 	cache_set_init(&cache->sets[i], cache->associativity, cache->block_size);
     }
@@ -140,7 +136,7 @@ static cache_line_t *cache_set_find_matching_line(cache_t *cache, cache_set_t *c
     /*
      * Don't forget to call cache_line_make_mru(cache_set, i) if you find a matching cache line.
      */
-    for (int i = 0; i < cache->associativity; i++) {
+    for (unsigned int i = 0; i < cache->associativity; i++) {
 	cache_line_t *line = cache_set->cache_lines[i];
 	if (cache_line_check_validity_and_tag(line, tag)) {
 	    cache_line_make_mru(cache_set, i);
@@ -164,7 +160,7 @@ static cache_line_t *find_available_cache_line(cache_t *cache, cache_set_t *cach
 
     int lineI = cache->associativity-1;
     cache_line_t *line = cache_set->cache_lines[lineI];
-    for (int i = 0; i < cache->associativity; i++) {
+    for (unsigned int i = 0; i < cache->associativity; i++) {
 	cache_line_t *line2 = cache_set->cache_lines[i];
 	if (!line2->is_valid) {
 	    line = line2;
@@ -206,10 +202,10 @@ int cache_read(cache_t *cache, int *address)
 {
     intptr_t addr = (intptr_t)address;
     int block_offset = addr & cache->block_offset_mask;
-    assert(block_offset < cache->block_size);
+    assert((size_t)block_offset < cache->block_size);
 
     int cache_index = (addr >> cache->cache_index_shift) & cache->cache_index_mask;
-    assert(cache_index < cache->num_sets);
+    assert((unsigned int)cache_index < cache->num_sets);
 
     int tag = addr >> (cache->tag_shift);
 
@@ -223,7 +219,7 @@ int cache_read(cache_t *cache, int *address)
     int found = line != NULL;
     if (!found) {
 	cache->miss_count++;
-	line = cache_set_add(cache, set, address, tag);
+	line = cache_set_add(cache, set, addr, tag);
     }
     assert(line);
 

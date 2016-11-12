@@ -11,7 +11,7 @@ array_t test_array;
 /*
  * Write data to the array, bypassing the "cache".
  */
-int fillArray(array_t a)
+void fillArray(array_t a)
 {
     int i, j;
 
@@ -24,7 +24,6 @@ int sumA(array_t a)
 {
     int i, j;
     int sum = 0;
-    int x;
 
     for (i = 0; i < N; i++)
         for (j = 0; j < N; j ++)
@@ -37,7 +36,6 @@ int sumB(array_t a)
 {
     int i, j;
     int sum = 0;
-    int x;
 
     for (j = 0; j < N; j ++)
         for (i = 0; i < N; i++)
@@ -59,7 +57,7 @@ int sumC(array_t a)
     return sum;
 }
 
-int print_stats()
+void print_stats()
 {
     int mc = cache_miss_count(cache);
     int ac = cache_access_count(cache);
@@ -71,8 +69,8 @@ int print_stats()
     else
     {
 	printf("Miss rate = %8.4f\n", (double) mc/ac);
+        //printf("Counts, miss %d, access %d\n", mc, ac);
     }
-    printf("Counts, miss %d, access %d\n", mc, ac);
 }
 
 int main()
