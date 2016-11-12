@@ -224,7 +224,7 @@ int cache_read(cache_t *cache, int *address)
     assert(line);
 
     int val = cache_line_retrieve_data(line, block_offset);
-    printf("cache_index %#x, tag %#x, block_offset %#x, found %d, addr %#x\n", cache_index, tag, block_offset, found, addr);
+    //printf("cache_index %#x, tag %#x, block_offset %#x, found %d, addr %#x\n", cache_index, tag, block_offset, found, addr);
     assert(val == *address);
     return val;
 }
