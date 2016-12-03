@@ -53,8 +53,167 @@ one request for all of them.
 
 # Question 7
 
+## map_file
+
+OS. This is adding physical addresses into the OS Memory Map.
+
+## find_map_entry
+
+MMU. Once the entry is in the map, the hardware can do a quick lookups against
+it to set the dirty/reference bits.
+
+## page_out_if_dirty
+
+The OS controls when dirty pages are written to disk, but the MMU sets the dirty
+bit that the OS looks for.
+
+## find_replacement_victim
+
+The OS chooses the replacement victim, however, the MMU sets the referenced bit
+that allows the OS to determine which pages have been recently accessed.
+
+## demand_page_in
+
+This is triggered by the MMU when a page fault occurs. However, the handler of
+the page fault is in the OS.
+
 # Question 8
+
+## test_seq_write
+
+This writes a series of sequential bytes.
+
+## test_seq_read
+
+This reads a series of sequential bytes such as set by test_seq_write.
+
+## test_random_read_with_locality
+
+This reads from random addresses in the range starting at va and going to
+va+bytes. The third field, `percent_in_working_set`, controls the proportion of
+the reads are in the "working set" which is specified by `va+working_set_size`.
+This is done to simulate locality as most reads in a real program will be from a
+smaller subset of memory and not uniformly random.
 
 # Question 10
 
+## 1
+The accessed bit is stored in the page table entries. It is set to zero on
+initialization/page in, as well as when `find_replacement_victim` is looking for
+a page to replace. If the accessed bit is set, it will be reset to zero. It is
+read in `find_replacement_victim`. The setting of the bit to 1 would be done by
+the hardware, while resetting it/reading it would be done in the OS in order to
+evict less frequently used pages.
+
+## 2
+
+The while loop in find_replacement_victim iterates through the physical frame
+table until it finds a entry that hasn't been recently accessed. It starts at
+the clock_index to make sure all entries are iterated over and not just the
+start of the table.
+
+## 3
+
+The `inverse_page_table` is a mapping between physical page numbers and virtual
+page numbers. Since find_replacement_victim with the clock replacement algorithm
+iterates through the physical frames, we need to be able to mark the virtual
+page as invalid since it's no longer loaded.
+
 # Question 11
+
+```
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-clock swap 0 0x1000 1000 3
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using clock replacement
+Test: Random Read with Locality; 50% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       6542
+zero fills:     0
+page outs:      0
+replacements:   6510
+./vm-clock swap 0 0x1000 1000 3  0.00s user 0.00s system 50% cpu 0.007 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-clock swap 0 0x1000 1000 4
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using clock replacement
+Test: Random Read with Locality; 80% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       2490
+zero fills:     0
+page outs:      0
+replacements:   2458
+./vm-clock swap 0 0x1000 1000 4  0.00s user 0.00s system 70% cpu 0.005 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-clock swap 0 0x1000 1000 5
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using clock replacement
+Test: Random Read with Locality; 90% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       1094
+zero fills:     0
+page outs:      0
+replacements:   1062
+./vm-clock swap 0 0x1000 1000 5  0.00s user 0.00s system 0% cpu 0.004 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-clock swap 0 0x1000 1000 6
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using clock replacement
+Test: Random Read with Locality; 99% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       109
+zero fills:     0
+page outs:      0
+replacements:   77
+./vm-clock swap 0 0x1000 1000 6  0.00s user 0.00s system 0% cpu 0.002 total
+```
+
+```
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-fifo swap 0 0x1000 1000 3
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using fifo replacement
+Test: Random Read with Locality; 50% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       7293
+zero fills:     0
+page outs:      0
+replacements:   7261
+./vm-fifo swap 0 0x1000 1000 3  0.00s user 0.00s system 45% cpu 0.007 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-fifo swap 0 0x1000 1000 4
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using fifo replacement
+Test: Random Read with Locality; 80% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       3955
+zero fills:     0
+page outs:      0
+replacements:   3923
+./vm-fifo swap 0 0x1000 1000 4  0.00s user 0.00s system 63% cpu 0.005 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-fifo swap 0 0x1000 1000 5
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using fifo replacement
+Test: Random Read with Locality; 90% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       2284
+zero fills:     0
+page outs:      0
+replacements:   2252
+./vm-fifo swap 0 0x1000 1000 5  0.00s user 0.00s system 77% cpu 0.004 total
+ rice@config  ~/Developer/cs313/hw5/code/vm   master ●  time ./vm-fifo swap 0 0x1000 1000 6
+Mapping file 'swap' starting at offset 0 to virtual addresses 0x1000 through 0x3e8fff using fifo replacement
+Test: Random Read with Locality; 99% of accesses to workset that is 66% the size of physical memory
+reads:          10000
+writes:         0
+page ins:       241
+zero fills:     0
+page outs:      0
+replacements:   209
+./vm-fifo swap 0 0x1000 1000 6  0.00s user 0.00s system 0% cpu 0.002 total
+```
+
+Clock replacement is better in all test cases above. This is because it evicts
+pages that are not used very much instead of evicting all pages equally. This
+way commonly used pages stay in memory more than infrequently used pages.
+
+Clock replacement gets pretty close to the theoretical limit. For test 6, 99% of
+the reads are from the working set. With 10000 reads that means only 100 page
+ins should happen. Clock replacement has 109 page ins. A smarter algorithm would
+dedicated almost all of the pages to the working set, and only have a few that
+will be swapped out for non working set reads.
+
