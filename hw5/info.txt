@@ -1,0 +1,60 @@
+# Question 1
+
+## pt_lookup
+
+The functionality of pt_lookup would be mostly handled by the MMU hardware. It's
+much faster to have the MMU do the conversion between virtual addresses and the
+physical addresses. However, the operating system will set the values in the
+page table.
+
+## get_pa
+
+This is mostly done in the MMU. However, if there is a page fault, the OS has to
+get involved to determine which page to load into memory.
+
+# Question 3
+
+## a)
+
+When db_get is called in the client, it makes an IPC request to the server using
+`ipc_request` and `ipc_recv`. This differs from local.c since the database is in
+a separate process. db_get is called from print_highest as in local.c.
+
+## b)
+In rpc_server.c, db_get is called from an infinite ipc_recv loop. This waits for
+a request, and once it receives it runs db_get and returns the result via
+ipc_respond.
+
+## c)
+The server's result gets transfered via IPC. ipc_respond takes a pointer and a
+size which gets copied into the address the client specifies when calling
+ipc_recv.
+
+
+
+```
+$ time ./rpc_client 48269
+Doug has the highest mark at 94%
+./rpc_client 48269  0.00s user 0.00s system 0% cpu 5.003 total
+```
+
+# Question 4
+
+```
+$ ./rpc_callback_client_0 48269
+Doug has the highest mark at 94%
+./rpc_callback_client_0 48269  0.00s user 0.00s system 0% cpu 5.004 total
+```
+
+While, rpc_callback_client_0 is asyncronous, it is waiting for every request to
+be processed before starting another one. To improve the time, it should be
+possible to make these requests in parallel and thus take roughly the time of
+one request for all of them.
+
+# Question 7
+
+# Question 8
+
+# Question 10
+
+# Question 11

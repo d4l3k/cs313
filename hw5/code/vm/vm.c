@@ -84,7 +84,7 @@ struct fifo_s* fifo_front = & fifo [NUM_PHYSICAL_FRAMES -1];
  */
 void fifo_init() {
   int i;
-  
+
   for (i=0; i<NUM_PHYSICAL_FRAMES; i++) {
     fifo[i] .pfn  = i;
     fifo[i] .prev = & fifo [(i-1 + NUM_PHYSICAL_FRAMES) % NUM_PHYSICAL_FRAMES];
@@ -104,7 +104,7 @@ int fifo_get_front() {
  */
 void fifo_move_to_back (int pfn) {
   struct fifo_s* fe = & fifo [pfn];
-  // remove 
+  // remove
   fe-> prev-> next        = fe-> next;
   fe-> next-> prev        = fe-> prev;
   if (fe == fifo_front)
@@ -141,12 +141,12 @@ int                map_length             = 0;
  */
 void initialize_vm() {
   int i;
-  
+
   for (i=0; i<NUM_VIRTUAL_PAGES; i++)
     page_table [i] .is_valid = 0;
   for (i=0; i<NUM_PHYSICAL_FRAMES; i++)
     inverse_page_table [i] = -1;
-  
+
 #ifdef FIFO_REPLACEMENT
   fifo_init();
 #endif
@@ -157,7 +157,7 @@ void initialize_vm() {
  */
 int map_file (char* file_name, int file_offset, unsigned int va, int page_count) {
   int fd;
-  
+
   fd = open (file_name, O_RDWR);
   if (fd > 0 && map_length < MAX_MAP_ENTRIES) {
     map_length += 1;
@@ -181,16 +181,22 @@ int pt_lookup (unsigned int va, int is_write) {
   struct pte_s* pte;
 
   // *** TODO
-  vpn    = 0;
-  offset = 0;
-  pte    = 0;
+  vpn    = va >> PAGE_SIZE_LOG_2;
+  offset = va % PAGE_SIZE;
+  pte    = &page_table[vpn];
 
-  if (pte-> is_valid) {
+  assert(vpn < NUM_VIRTUAL_PAGES);
+  assert(offset < PAGE_SIZE);
+  assert(pte != NULL);
+  assert((int)va == ((vpn << PAGE_SIZE_LOG_2) + offset));
+
+  if (pte->is_valid) {
     pte-> is_accessed  = 1;
     pte-> is_dirty    |= is_write;
-    pa                 = 0; // *** TODO
-  } else
+    pa                 = pte->pfn*PAGE_SIZE + offset; // *** TODO
+  } else {
     pa = -1;
+  }
   return pa;
 }
 
@@ -199,7 +205,7 @@ int pt_lookup (unsigned int va, int is_write) {
  */
 struct map_entry_s* find_map_entry (unsigned int vpn) {
   int i;
-  
+
   for (i=0; i<map_length; i++)
     if (vpn >= map [i] .vpn_start && vpn <= map [i] .vpn_end)
       return & map [i];
@@ -213,7 +219,7 @@ void page_out_if_dirty (int vpn) {
   struct map_entry_s* map_entry;
   struct pte_s* pte;
   int    ok, file_offset, entry_offset;
-  
+
   pte = & page_table [vpn];
   if (pte-> is_valid && pte-> is_dirty) {
     map_entry = find_map_entry (vpn);
@@ -223,7 +229,7 @@ void page_out_if_dirty (int vpn) {
     ok = pwrite (map_entry-> file_desc, & phys_mem [pte-> pfn << PAGE_SIZE_LOG_2], PAGE_SIZE, file_offset);
     assert (ok == PAGE_SIZE);
     pte-> is_dirty = 0;
-    
+
     perf_page_out_count++;
   }
 }
@@ -233,7 +239,7 @@ void page_out_if_dirty (int vpn) {
  */
 void flush_all_dirty_pages() {
   int vpn;
-  
+
   for (vpn=0; vpn<NUM_VIRTUAL_PAGES; vpn++)
     page_out_if_dirty (vpn);
 }
@@ -243,12 +249,12 @@ void flush_all_dirty_pages() {
  */
 void close_and_report () {
   int i;
-  
+
   flush_all_dirty_pages();
-  
+
   for (i=0; i<map_length; i++)
     close (map [i] .file_desc);
-  
+
   printf ("reads:\t\t%d\n",      perf_read_count);
   printf ("writes:\t\t%d\n",     perf_write_count);
   printf ("page ins:\t%d\n",     perf_page_in_count);
@@ -265,7 +271,7 @@ void close_and_report () {
  */
 int find_replacement_victim() {
   int vpn, pfn;
-  
+
 #ifdef CLOCK_REPLACEMENT
   while ((vpn = inverse_page_table [clock_index]) != -1 && page_table [vpn] .is_accessed) {
     page_table [vpn] .is_accessed = 0;
@@ -283,10 +289,10 @@ int find_replacement_victim() {
     page_table [vpn] .is_valid = 0;
     inverse_page_table [pfn]   = -1;
   }
-  
+
   if (vpn != -1)
     perf_replacement_count++;
-  
+
   return pfn;
 }
 
@@ -332,7 +338,7 @@ int demand_page_in (unsigned int va) {
     }
   }
   if (pte-> is_valid)
-    perf_page_in_count++;  
+    perf_page_in_count++;
   return pte-> is_valid;
 }
 
@@ -342,7 +348,7 @@ int demand_page_in (unsigned int va) {
  */
 int get_pa (unsigned int va, int is_write) {
   int pa, demand_page_success;
-  
+
   pa = pt_lookup (va, is_write);
   if (pa == -1) {
     demand_page_success = demand_page_in (va);
@@ -355,12 +361,12 @@ int get_pa (unsigned int va, int is_write) {
     printf ("Invalid address issued: 0x%x\n", va);
     exit   (-1);
   }
-  
+
   if (is_write)
     perf_write_count++;
   else
     perf_read_count++;
-  
+
   return pa;
 }
 
@@ -385,9 +391,9 @@ void write_byte (int va, unsigned char value) {
  */
 int read_int (int va) {
   int pa, value;
-  
+
   pa = get_pa (va, 0);
-  
+
   value = phys_mem [pa+0] << 8*0 |
           phys_mem [pa+1] << 8*1 |
           phys_mem [pa+2] << 8*2 |
@@ -400,7 +406,7 @@ int read_int (int va) {
  */
 void write_int (int va, unsigned int value) {
   int pa;
-  
+
   pa = get_pa (va, 1);
   phys_mem [pa+0] = (value >> 8*0) & 0xff;
   phys_mem [pa+1] = (value >> 8*1) & 0xff;
@@ -413,9 +419,9 @@ void write_int (int va, unsigned int value) {
  */
 void test_seq_write (int va, int bytes) {
   int i;
-  
+
   printf ("Test: Sequential Write\n");
-  
+
   for (i=va; i<va+bytes; i+=4)
     write_int (i, (i-va)/4);
 }
@@ -425,9 +431,9 @@ void test_seq_write (int va, int bytes) {
  */
 void test_seq_read (int va, int bytes) {
   int i, v;
-  
+
   printf ("Test: Sequential Read\n");
-  
+
   for (i=va; i<va+bytes; i+=4) {
     v = read_int (i);
     if (v != (i-va)/4)
@@ -440,10 +446,10 @@ void test_seq_read (int va, int bytes) {
  */
 void test_random_read_with_locality (int va, int bytes, int percent_in_working_set, int working_set_size) {
   int i, ra;
-  
+
   printf ("Test: Random Read with Locality; %d%% of accesses to workset that is %d%% the size of physical memory\n",
           percent_in_working_set, (working_set_size*1000/NUM_PHYSICAL_FRAMES+5)/10);
-  
+
   for (i=0; i< 10000; i++) {
     if (((rand() % 100) < percent_in_working_set) && (working_set_size * PAGE_SIZE < bytes))
       ra = va + (rand() % (working_set_size * PAGE_SIZE));
@@ -459,7 +465,7 @@ void test_random_read_with_locality (int va, int bytes, int percent_in_working_s
 int main (int argc, char** argv) {
   char* file;
   int   offset, pages, va, test, bytes, ok;
-  
+
   if (argc != 6) {
     printf ("usage: vm file offset va pages test\n");
     return -1;
@@ -483,16 +489,16 @@ int main (int argc, char** argv) {
   }
   printf ("Mapping file '%s' starting at offset %d to virtual addresses 0x%x through 0x%x using %s replacement\n",
           file, offset, va, va + (pages << PAGE_SIZE_LOG_2) -1, REPLACEMENT_ALGORITHM);
-  
+
   ok = map_file (file, offset, va, pages);
   if (! ok) {
     printf ("Unable to map file\n");
     return -1;
   }
   bytes = pages << PAGE_SIZE_LOG_2;
-  
+
   initialize_vm();
-  
+
   switch (test) {
     case 0:
       test_seq_write (va, bytes);
@@ -516,6 +522,6 @@ int main (int argc, char** argv) {
       test_random_read_with_locality (va, bytes, 99, (NUM_PHYSICAL_FRAMES*10 * 0.66 + 5)/10);
       break;
   }
-  
+
   close_and_report();
 }
